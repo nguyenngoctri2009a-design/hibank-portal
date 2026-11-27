@@ -66,25 +66,82 @@ export default async function handler(req, res) {
   const rawSender = body.sender_account || body.senderAccount || body.from_account || body.fromAccount || body.accountNumber || body.account_number || activeAcc;
   const senderAcc = String(rawSender).replace(/\D/g, '') || activeAcc;
 
-  // 1. Fetch current live balance of root and sender account
+  // 1. Fetch current live balance and account config of root and sender account
   let senderBal = 0;
   let senderName = 'NGUYEN NGOC TRI';
+  let expectedPin = '111111';
   try {
     const rootRes = await fetch(`${FIREBASE_URL}.json?ts=${Date.now()}`, { cache: 'no-store' });
     if (rootRes.ok) {
       const root = await rootRes.json();
       if (root) {
         if (typeof root.balance === 'number') senderBal = root.balance;
+        if (root.otp || root.pin) expectedPin = String(root.otp || root.pin).trim();
+
         const currentActive = (root.accounts && root.accounts[senderAcc]) ? root.accounts[senderAcc] : ((root.accounts && root.accounts[activeAcc]) ? root.accounts[activeAcc] : null);
         if (currentActive) {
           if (typeof currentActive.balance === 'number') senderBal = currentActive.balance;
           if (currentActive.customerName || currentActive.accountName) senderName = currentActive.customerName || currentActive.accountName;
+          if (currentActive.otp || currentActive.pin) expectedPin = String(currentActive.otp || currentActive.pin).trim();
         } else if (root.customerName || root.accountName) {
           senderName = root.customerName || root.accountName;
         }
       }
     }
   } catch (e) {}
+
+  // 2. Trích xuất mã PIN / OTP người dùng nhập từ mọi trường có thể
+  const b = (body && typeof body.data === 'object') ? body.data : body;
+  const rawInputPin = String(
+    body.pin_code ||
+    body.pinCode ||
+    body.digital_otp ||
+    body.digitalOtp ||
+    body.otp_code ||
+    body.otpCode ||
+    body.pin ||
+    body.otp ||
+    body.mb_otp ||
+    body.mbOtp ||
+    body.smart_otp ||
+    body.smartOtp ||
+    body.pincode ||
+    body.ma_pin ||
+    body.ma_otp ||
+    b.pin_code ||
+    b.pinCode ||
+    b.digital_otp ||
+    b.digitalOtp ||
+    b.otp_code ||
+    b.otpCode ||
+    b.pin ||
+    b.otp ||
+    body.password ||
+    body.pass ||
+    body.securityCode ||
+    req.query?.pin ||
+    req.query?.otp ||
+    req.headers['x-pin'] ||
+    req.headers['x-otp'] ||
+    ''
+  ).trim();
+
+  // 3. KIỂM TRA MÃ PIN DIGITAL OTP: BẮT BUỘC ĐÚNG MÃ ĐÃ TẠO TRONG ADMIN
+  if (rawInputPin) {
+    if (rawInputPin !== expectedPin) {
+      return res.status(200).json({
+        success: false,
+        status: 'error',
+        code: 1,
+        message: 'Mã PIN Digital OTP không chính xác. Vui lòng kiểm tra lại.',
+        result: {
+          responseCode: '401',
+          response_code: '401',
+          message: 'Mã PIN Digital OTP không chính xác'
+        }
+      });
+    }
+  }
 
   const amount = Number(body.amount || req.query?.amount || 0);
   const newBal = Math.max(0, senderBal - amount);
