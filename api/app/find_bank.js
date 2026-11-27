@@ -131,6 +131,7 @@ export default async function handler(req, res) {
     ''
   ).trim();
 
+  const clean = accNum;
   const bankCode = String(body.bank_code || body.bankCode || b.bank_code || b.bankCode || req.query?.bank_code || req.query?.bankCode || 'MB').toUpperCase();
   const customNameParam = body.account_name || body.accountName || body.customerName || b.account_name || b.accountName || req.query?.name;
 
