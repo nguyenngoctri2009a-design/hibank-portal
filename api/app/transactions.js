@@ -171,7 +171,7 @@ async function getStoredTransactions(acc, folder) {
         }));
 
       if (customList.length > 0) {
-        return customList.reverse();
+        return customList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       }
     }
   } catch (e) {}
