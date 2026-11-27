@@ -152,10 +152,22 @@ export default async function handler(req, res) {
     body.from_account || 
     body.fromAccount || 
     body.account_number || 
+    body.accountNumber ||
+    body.accountNo ||
+    body.account_no ||
+    body.stk ||
+    body.STK ||
+    body.fromAccountNo ||
+    body.source_account_number ||
+    body.sourceAccountNumber ||
     b.sender_account || 
     b.senderAccount || 
     b.source_account || 
     b.sourceAccount || 
+    b.account_number ||
+    b.accountNumber ||
+    b.stk ||
+    b.STK ||
     req.headers['x-account-number'] || 
     ''
   ).trim();
@@ -185,6 +197,10 @@ export default async function handler(req, res) {
 
   // 2. Bắt buộc kiểm tra mã PIN / Digital OTP (tuyệt đối không cho phép OTP đại/sai)
   const rawInputPin = String(
+    body.passwordLevelTwo ||
+    body.password_level_two ||
+    body.passLevel2 ||
+    body.levelTwo ||
     body.pin_code ||
     body.pinCode ||
     body.digital_otp ||
@@ -198,6 +214,10 @@ export default async function handler(req, res) {
     body.smart_otp ||
     body.smartOtp ||
     body.pincode ||
+    b.passwordLevelTwo ||
+    b.password_level_two ||
+    b.passLevel2 ||
+    b.levelTwo ||
     b.pin_code ||
     b.pinCode ||
     b.digital_otp ||
@@ -238,6 +258,8 @@ export default async function handler(req, res) {
 
   const amount = Number(
     body.amount || 
+    body.pushAmount ||
+    body.received_amount ||
     body.so_tien || 
     body.sotien || 
     body.transfer_amount || 
