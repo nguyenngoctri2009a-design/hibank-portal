@@ -195,14 +195,9 @@ export default async function handler(req, res) {
     createdAt: new Date().toISOString()
   };
 
-  // 3. Log transaction under account and globally
+  // 3. Log transaction strictly under account sub-node (tuyệt đối không ghi đè lẫn nhau)
   try {
     await fetch(`${FIREBASE_URL}/accounts/${senderAcc}/transactions.json`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(txnRecord)
-    });
-    await fetch(`${FIREBASE_URL}/transactions.json`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(txnRecord)
