@@ -527,33 +527,50 @@ export default async function handler(req, res) {
   }
 
   try {
+    const { accountsMap } = await getLiveAccountsMap();
+    const existing = resolveAccount(accountsMap, nodeKey, null);
+
+    const mergedName = (name && name !== 'THÀNH VIÊN MB' && name !== username) ? name : (existing?.customerName || existing?.accountName || name);
+    const mergedPass = (password && password !== '123456') ? password : (existing?.password || existing?.MK || password);
+    const mergedPhone = (phone && phone !== username && phone !== stk) ? phone : (existing?.phone || existing?.sdt || phone);
+    const mergedOtp = (otp && otp !== '111111') ? otp : (existing?.otp || existing?.OTP || otp);
+    const mergedBal = (body.balance !== undefined || body.tien !== undefined || body.TIEN !== undefined)
+      ? bal 
+      : (typeof existing?.balance === 'number' ? existing.balance : (typeof existing?.TIEN === 'number' ? existing.TIEN : bal));
+
     const accountRecord = {
+      ...(existing || {}),
       TK: username || nodeKey,
-      MK: password,
-      OTP: otp,
-      TIEN: bal,
+      MK: mergedPass,
+      OTP: mergedOtp,
+      TIEN: mergedBal,
       STK: stk || nodeKey,
       username: username || nodeKey,
       accountNumber: stk || nodeKey,
       stk: stk || nodeKey,
-      password: password,
-      otp: otp,
-      phone: phone,
-      sdt: phone,
-      accountName: name,
-      customerName: name,
-      fullName: name,
-      balance: bal,
+      password: mergedPass,
+      otp: mergedOtp,
+      phone: mergedPhone,
+      sdt: mergedPhone,
+      accountName: mergedName,
+      customerName: mergedName,
+      fullName: mergedName,
+      balance: mergedBal,
+      accountBalance: mergedBal,
+      availableBalance: mergedBal,
+      currentBalance: mergedBal,
+      so_tien: mergedBal,
+      soTien: mergedBal,
       tier: tier,
       bankCode: 'MB',
-      transactions: {
+      transactions: existing?.transactions || {
         [`TXN-INIT-${nodeKey}`]: {
           id: `TXN-INIT-${nodeKey}`,
           accountNumber: stk || nodeKey,
-          amount: bal,
-          balance: bal,
+          amount: mergedBal,
+          balance: mergedBal,
           type: 'IN',
-          description: `Khoi tao so du ban dau: +${bal.toLocaleString('vi-VN')} VND`,
+          description: `Khoi tao so du ban dau: +${mergedBal.toLocaleString('vi-VN')} VND`,
           createdAt: new Date().toISOString()
         }
       },
