@@ -152,7 +152,13 @@ export default async function handler(req, res) {
     ''
   ).trim();
 
-  const senderAcc = resolveAccount(accountsMap, rawSender, activeAccount);
+  let senderAcc = resolveAccount(accountsMap, rawSender, activeAccount);
+  if (!senderAcc && activeAccount && accountsMap[activeAccount]) {
+    senderAcc = accountsMap[activeAccount];
+  }
+  if (!senderAcc && Object.keys(accountsMap).length > 0) {
+    senderAcc = Object.values(accountsMap)[0];
+  }
 
   if (!senderAcc) {
     return res.status(200).json({

@@ -188,15 +188,23 @@ export default async function handler(req, res) {
 
   // Lấy dữ liệu 100% từ Firebase
   const { accountsMap, activeAccount } = await getLiveAccountsMap();
-  const acc = resolveAccount(accountsMap, requested, activeAccount);
+  let acc = resolveAccount(accountsMap, requested, activeAccount);
 
-  // Nếu tài khoản được yêu cầu nhưng không tồn tại trên Firebase: báo lỗi rõ ràng
+  // Fallback an toàn: nếu token hoặc header chứa tài khoản cũ đã xóa, tự động lấy tài khoản đang active trên Firebase
+  if (!acc && activeAccount && accountsMap[activeAccount]) {
+    acc = accountsMap[activeAccount];
+  }
+  if (!acc && Object.keys(accountsMap).length > 0) {
+    acc = Object.values(accountsMap)[0];
+  }
+
+  // Nếu không có bất kỳ tài khoản nào trên Firebase: báo lỗi rõ ràng
   if (!acc) {
     return res.status(200).json({
       success: false,
       code: 404,
       status: 'error',
-      message: `Tài khoản ${requested || ''} không tồn tại trên hệ thống Firebase`,
+      message: 'Hệ thống chưa có tài khoản nào được tạo trên Firebase',
       accountNumber: requested || '',
       account_number: requested || '',
       balance: 0,
