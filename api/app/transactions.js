@@ -113,20 +113,43 @@ export default async function handler(req, res) {
   const root = await getLiveRootData();
   const allAccounts = root.accounts || {};
 
-  // NGUỒN CHUẨN TỪ WEB (Hỗ trợ cả chuỗi ký tự và số)
-  const masterKey = root.active_account 
-    ? String(root.active_account).trim() 
-    : (Object.keys(allAccounts).length > 0 ? Object.keys(allAccounts)[0] : '1800123123');
-
   const requestedRaw = req.query?.account_number || req.query?.accountNumber || req.query?.stk || req.headers['x-account-number'];
   const requested = requestedRaw ? String(requestedRaw).trim() : null;
 
+  // Tự động nhận diện mục gốc tài khoản nếu nằm tại gốc Firebase (Ví dụ: /TRI)
+  if (requested && !allAccounts[requested]) {
+    try {
+      const dirRes = await fetch(`${FIREBASE_BASE}/${requested}.json?ts=${Date.now()}`);
+      if (dirRes.ok) {
+        const dirData = await dirRes.json();
+        if (dirData && (dirData.balance !== undefined || dirData.TIEN !== undefined)) {
+          allAccounts[requested] = {
+            ...dirData,
+            balance: typeof dirData.balance === 'number' ? dirData.balance : (typeof dirData.TIEN === 'number' ? dirData.TIEN : 0),
+            customerName: dirData.customerName || dirData.accountName || dirData.TK || requested,
+            accountNumber: dirData.accountNumber || dirData.stk || dirData.STK || requested,
+            updatedAt: dirData.updatedAt || new Date().toISOString()
+          };
+        }
+      }
+    } catch (e) {}
+  }
+
+  // NGUỒN CHUẨN TỪ WEB (Hỗ trợ cả chuỗi ký tự và số)
+  const masterKey = root.active_account 
+    ? String(root.active_account).trim() 
+    : (Object.keys(allAccounts).length > 0 ? Object.keys(allAccounts)[0] : 'TRI');
+
   // NẾU TÀI KHOẢN YÊU CẦU KHÔNG CÓ TRÊN HỆ THỐNG, LUÔN DÙNG MASTER TÀI KHOẢN WEB!
   const accNum = (requested && allAccounts[requested]) ? requested : masterKey;
-  const accData = allAccounts[accNum] || allAccounts[masterKey] || {};
+  let accData = allAccounts[accNum] || allAccounts[masterKey] || {};
 
-  const name = String(accData.customerName || accData.accountName || 'NGUYEN NGOC TRI').trim().toUpperCase();
-  const bal = typeof accData.balance === 'number' ? accData.balance : 0;
+  if (!accData.balance && accData.TIEN !== undefined) {
+    accData.balance = Number(accData.TIEN);
+  }
+
+  const name = String(accData.customerName || accData.accountName || accData.TK || 'TRI').trim().toUpperCase();
+  const bal = typeof accData.balance === 'number' ? accData.balance : (typeof accData.TIEN === 'number' ? accData.TIEN : 0);
   const createdAt = accData.updatedAt || new Date().toISOString();
 
   const list = await getStoredTransactions(accNum, name, bal, createdAt);
