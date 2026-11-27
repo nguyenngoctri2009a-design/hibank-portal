@@ -438,9 +438,14 @@
             <span style="display:inline-block; width:12px; height:12px; background:var(--t1-primary); border-radius:4px;"></span>
             1. Tài Khoản Của Bạn Trên App MB
           </div>
-          <button class="t1-btn t1-btn-secondary" onclick="loadUserAccount()">
-            🔄 Làm mới
-          </button>
+          <div style="display:flex; gap:8px;">
+            <button class="t1-btn t1-btn-primary" onclick="showMyVietQR()" style="padding: 6px 14px; font-size: 12px;">
+              📱 Xem Mã VietQR
+            </button>
+            <button class="t1-btn t1-btn-secondary" onclick="loadUserAccount()">
+              🔄 Làm mới
+            </button>
+          </div>
         </div>
 
         <div class="t1-kpi-grid">
@@ -482,8 +487,8 @@
           Khi bạn hoặc khách hàng chuyển tiền trên App MB Bank, chỉ cần gõ đúng số tài khoản và ngân hàng đã lưu dưới đây, App sẽ tự động hiển thị chính xác tên người thụ hưởng bạn đã đặt. Nếu chưa lưu, App sẽ báo <strong>"Tài khoản không tồn tại"</strong>.
         </p>
 
-        <!-- FORM THÊM NGƯỜI NHẬN - ĐÚNG 1 BUTTON DUY NHẤT -->
-        <div style="display: grid; grid-template-columns: 1.2fr 1.6fr 2.2fr auto; gap: 12px; align-items: flex-end; margin-bottom: 22px;">
+        <!-- FORM THÊM NGƯỜI NHẬN - RESPONSIVE T1 -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; align-items: flex-end; margin-bottom: 22px;">
           <div class="t1-field">
             <label class="t1-label">Ngân hàng nhận</label>
             <select id="rec-bank" class="t1-select">
@@ -906,6 +911,40 @@
       }
     }
 
+    // =========================================================================
+    // 4. HIỂN THỊ MÃ VIETQR CÁ NHÂN
+    // =========================================================================
+    function showMyVietQR() {
+      if (!currentSession) return;
+      const num = currentSession.accountNumber || currentSession.username || '1800123123';
+      const name = (currentSession.customerName || currentSession.accountName || 'NGUYEN NGOC TRI').toUpperCase();
+
+      document.getElementById('qr-acc-num').textContent = num;
+      document.getElementById('qr-acc-name').textContent = name;
+
+      // Sinh mã QR nhận tiền chuẩn MB Bank Napas 247
+      const qrData = `00020101021238540010A000000727012400069704220110${num}5204599953037045802VN62180814CHUYEN TIEN MB6304`;
+      const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=4&data=${encodeURIComponent(qrData)}`;
+
+      const imgEl = document.getElementById('qr-image-display');
+      if (imgEl) imgEl.src = qrImg;
+
+      document.getElementById('modal-vietqr').style.display = 'flex';
+      log(`📱 Đã mở mã VietQR nhận tiền của tài khoản [${num}] ${name}`);
+    }
+
+    function closeVietQRModal() {
+      document.getElementById('modal-vietqr').style.display = 'none';
+    }
+
+    function copyMyStk() {
+      if (!currentSession) return;
+      const num = currentSession.accountNumber || currentSession.username || '1800123123';
+      navigator.clipboard.writeText(num).then(() => {
+        alert(`✅ Đã sao chép số tài khoản MB: ${num}`);
+      });
+    }
+
     document.getElementById('btn-save-rec')?.addEventListener('click', saveRecipient);
     document.getElementById('btn-refresh-rec')?.addEventListener('click', loadRecipientsList);
     document.getElementById('btn-test-lookup')?.addEventListener('click', testLookup);
@@ -922,6 +961,36 @@
         }
       }, 2500);
     });
+  </script>
+
+  <!-- MODAL VIETQR T1 PRO -->
+  <div id="modal-vietqr" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); z-index:9999; align-items:center; justify-content:center; padding:16px;">
+    <div class="t1-card" style="width:100%; max-width:420px; padding:28px; text-align:center; box-shadow:0 20px 40px rgba(0,0,0,0.25);">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #f1f5f9; padding-bottom:12px; margin-bottom:16px;">
+        <div style="font-size:16px; font-weight:850; color:#0f172a;">📱 MÃ VIETQR NHẬN TIỀN</div>
+        <button class="t1-btn t1-btn-secondary" onclick="closeVietQRModal()" style="padding:4px 10px; font-size:12px;">✕ Đóng</button>
+      </div>
+
+      <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:18px; padding:16px; display:inline-block; margin-bottom:16px;">
+        <img id="qr-image-display" src="" alt="VietQR MB Bank" style="width:240px; height:240px; display:block; border-radius:12px;" />
+      </div>
+
+      <div style="margin-bottom:18px; text-align:left; background:#f0f9ff; border:1px solid #bae6fd; border-radius:14px; padding:12px 16px;">
+        <div style="font-size:11px; font-weight:800; color:#0369a1; text-transform:uppercase; margin-bottom:2px;">NGÂN HÀNG QUÂN ĐỘI (MB BANK)</div>
+        <div style="font-size:15px; font-weight:900; color:#0f172a; margin-bottom:4px;">
+          Chủ TK: <span id="qr-acc-name" style="color:#0284c7;">-</span>
+        </div>
+        <div style="font-size:14px; font-weight:800; color:#334155; font-family:monospace; display:flex; justify-content:space-between; align-items:center;">
+          <span>STK: <strong id="qr-acc-num">-</strong></span>
+          <button class="t1-btn t1-btn-secondary" onclick="copyMyStk()" style="padding:3px 8px; font-size:11px;">Copy STK</button>
+        </div>
+      </div>
+
+      <button class="t1-btn t1-btn-primary" onclick="closeVietQRModal()" style="width:100%; padding:11px;">
+        Xác Nhận &amp; Đóng
+      </button>
+    </div>
+  </div>
   </script>
 </body>
 </html>

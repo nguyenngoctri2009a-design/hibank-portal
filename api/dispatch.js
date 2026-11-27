@@ -25,7 +25,9 @@ export default async function handler(req, res) {
       const root = rootRes.ok ? (await rootRes.json()) || {} : {};
 
       const currentActive = accounts[activeAccount] || {};
-      const actualBal = typeof root.balance === 'number' ? root.balance : (typeof currentActive.balance === 'number' ? currentActive.balance : 0);
+      const actualBal = typeof currentActive.balance === 'number' 
+        ? currentActive.balance 
+        : (typeof root.balance === 'number' ? root.balance : 0);
 
       return res.status(200).json({
         success: true,
@@ -34,11 +36,11 @@ export default async function handler(req, res) {
         activeAccount: activeAccount,
         accounts: accounts,
         balance: actualBal,
-        customerName: root.customerName || currentActive.customerName || 'NGUYEN NGOC TRI',
-        accountNumber: root.accountNumber || activeAccount
+        customerName: currentActive.customerName || root.customerName || 'NGUYEN NGOC TRI',
+        accountNumber: activeAccount
       });
     } catch (err) {
-      return res.status(500).json({ success: false, error: err.message });
+      return res.status(500).json({ success: false, code: 500, error: err.message });
     }
   }
 
@@ -51,42 +53,39 @@ export default async function handler(req, res) {
   // Bảo vệ cổng Admin bằng mã khóa bảo mật
   const adminKey = String(req.headers['x-admin-key'] || body.admin_key || body.adminKey || body.key || '').trim();
   if (adminKey !== '2009') {
-    return res.status(401).json({ success: false, message: 'Mã khóa bảo mật không chính xác' });
+    return res.status(401).json({ success: false, code: 401, message: 'Mã khóa bảo mật không chính xác' });
   }
 
   const action = body.action || 'save_account';
 
   if (action === 'verify_key') {
-    return res.status(200).json({ success: true, message: 'Xác thực thành công' });
+    return res.status(200).json({ success: true, code: 0, message: 'Xác thực thành công' });
   }
 
   // ACTION: SET ACTIVE ACCOUNT
   if (action === 'set_active') {
     const accNum = String(body.accountNumber || body.account_number || body.stk || '').replace(/\D/g, '');
     if (!accNum) {
-      return res.status(400).json({ success: false, message: 'Missing accountNumber' });
+      return res.status(400).json({ success: false, code: 400, message: 'Thiếu số tài khoản accountNumber' });
     }
 
     try {
-      // 1. Set active_account
-      await fetch(`${FIREBASE_URL}/active_account.json`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(accNum)
-      });
-
-      // 2. Read this account details
-      const accRes = await fetch(`${FIREBASE_URL}/accounts/${accNum}.json`);
+      // 1. Read account details first
+      const accRes = await fetch(`${FIREBASE_URL}/accounts/${accNum}.json?ts=${Date.now()}`);
       let accData = accRes.ok ? await accRes.json() : null;
 
       if (!accData) {
         accData = {
           accountNumber: accNum,
           username: accNum,
-          accountName: body.accountName || 'NGUYEN NGOC TRI',
-          customerName: body.accountName || 'NGUYEN NGOC TRI',
+          accountName: body.accountName || 'THÀNH VIÊN MB',
+          customerName: body.accountName || 'THÀNH VIÊN MB',
           balance: Number.isFinite(Number(body.balance)) ? Number(body.balance) : 0,
-          tier: 'MB Priority Digital',
+          password: String(body.password || '123456').trim(),
+          phone: String(body.phone || accNum).trim(),
+          otp: String(body.otp || '111111').trim(),
+          tier: body.tier || 'MB Priority Digital',
+          bankCode: 'MB',
           updatedAt: new Date().toISOString()
         };
         await fetch(`${FIREBASE_URL}/accounts/${accNum}.json`, {
@@ -98,16 +97,26 @@ export default async function handler(req, res) {
 
       const activeBal = typeof accData.balance === 'number' ? accData.balance : 0;
 
-      // 3. Sync to root for backward compatibility
+      // 2. Set active_account & synchronize root
       await Promise.all([
+        fetch(`${FIREBASE_URL}/active_account.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(accNum)
+        }),
         fetch(`${FIREBASE_URL}.json`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             accountNumber: accNum,
-            accountName: accData.accountName || accData.customerName || 'NGUYEN NGOC TRI',
-            customerName: accData.customerName || accData.accountName || 'NGUYEN NGOC TRI',
+            username: accNum,
+            accountName: accData.accountName || accData.customerName || 'THÀNH VIÊN MB',
+            customerName: accData.customerName || accData.accountName || 'THÀNH VIÊN MB',
             balance: activeBal,
+            phone: accData.phone || accNum,
+            otp: accData.otp || '111111',
+            password: accData.password || '123456',
+            tier: accData.tier || 'MB Priority Digital',
             active_account: accNum,
             activeAccount: accNum,
             updatedAt: new Date().toISOString()
@@ -128,7 +137,123 @@ export default async function handler(req, res) {
         account: accData
       });
     } catch (err) {
-      return res.status(500).json({ success: false, error: err.message });
+      return res.status(500).json({ success: false, code: 500, error: err.message });
+    }
+  }
+
+  // ACTION: DIRECT BALANCE UPDATE
+  if (action === 'update_balance') {
+    const accNum = String(body.accountNumber || body.account_number || body.stk || '').replace(/\D/g, '');
+    const newBal = Number(body.balance);
+
+    if (!accNum || !Number.isFinite(newBal) || newBal < 0) {
+      return res.status(400).json({ success: false, code: 400, message: 'Số tài khoản hoặc số dư không hợp lệ' });
+    }
+
+    try {
+      const activeRes = await fetch(`${FIREBASE_URL}/active_account.json`);
+      const activeAcc = activeRes.ok ? String(await activeRes.json()).replace(/\D/g, '') : '';
+
+      const promises = [
+        fetch(`${FIREBASE_URL}/accounts/${accNum}.json`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            balance: newBal,
+            updatedAt: new Date().toISOString()
+          })
+        })
+      ];
+
+      // Nếu tài khoản được cập nhật đang là active account, cập nhật luôn root
+      if (accNum === activeAcc || !activeAcc) {
+        promises.push(
+          fetch(`${FIREBASE_URL}.json`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              balance: newBal,
+              updatedAt: new Date().toISOString()
+            })
+          }),
+          fetch(`https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/balance.json`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newBal)
+          })
+        );
+      }
+
+      await Promise.all(promises);
+
+      return res.status(200).json({
+        success: true,
+        code: 0,
+        message: `Đã cập nhật số dư tài khoản ${accNum} thành ${newBal.toLocaleString('vi-VN')} VND`,
+        balance: newBal
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, code: 500, error: err.message });
+    }
+  }
+
+  // ACTION: EDIT / UPDATE ACCOUNT DETAILS
+  if (action === 'update_account') {
+    const accNum = String(body.accountNumber || body.account_number || body.stk || '').replace(/\D/g, '');
+    if (!accNum) {
+      return res.status(400).json({ success: false, code: 400, message: 'Missing accountNumber' });
+    }
+
+    try {
+      const accRes = await fetch(`${FIREBASE_URL}/accounts/${accNum}.json`);
+      const existing = accRes.ok ? (await accRes.json()) || {} : {};
+
+      const updated = {
+        ...existing,
+        accountName: body.customerName ? body.customerName.trim().toUpperCase() : existing.accountName,
+        customerName: body.customerName ? body.customerName.trim().toUpperCase() : existing.customerName,
+        password: body.password ? String(body.password).trim() : existing.password,
+        phone: body.phone ? String(body.phone).trim() : existing.phone,
+        otp: body.otp ? String(body.otp).trim() : existing.otp,
+        tier: body.tier || existing.tier || 'MB Priority Digital',
+        balance: Number.isFinite(Number(body.balance)) ? Number(body.balance) : existing.balance,
+        updatedAt: new Date().toISOString()
+      };
+
+      await fetch(`${FIREBASE_URL}/accounts/${accNum}.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      });
+
+      // Kiểm tra nếu là active account thì sync root
+      const activeRes = await fetch(`${FIREBASE_URL}/active_account.json`);
+      const activeAcc = activeRes.ok ? String(await activeRes.json()).replace(/\D/g, '') : '';
+      if (accNum === activeAcc) {
+        await fetch(`${FIREBASE_URL}.json`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            accountName: updated.customerName,
+            customerName: updated.customerName,
+            password: updated.password,
+            phone: updated.phone,
+            otp: updated.otp,
+            tier: updated.tier,
+            balance: updated.balance,
+            updatedAt: updated.updatedAt
+          })
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        code: 0,
+        message: `Đã cập nhật thông tin tài khoản ${accNum}`,
+        account: updated
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, code: 500, error: err.message });
     }
   }
 
@@ -136,36 +261,53 @@ export default async function handler(req, res) {
   if (action === 'delete_account') {
     const accNum = String(body.accountNumber || body.account_number || body.stk || '').replace(/\D/g, '');
     if (!accNum) {
-      return res.status(400).json({ success: false, message: 'Missing accountNumber' });
+      return res.status(400).json({ success: false, code: 400, message: 'Thiếu số tài khoản' });
     }
     try {
       await fetch(`${FIREBASE_URL}/accounts/${accNum}.json`, { method: 'DELETE' });
-      return res.status(200).json({ success: true, message: `Đã xóa tài khoản ${accNum}` });
+      return res.status(200).json({ success: true, code: 0, message: `Đã xóa tài khoản ${accNum}` });
     } catch (err) {
-      return res.status(500).json({ success: false, error: err.message });
+      return res.status(500).json({ success: false, code: 500, error: err.message });
     }
   }
 
-  // ACTION: RESET ALL TRANSACTIONS
+  // ACTION: CLEAR TRANSACTIONS
   if (action === 'clear_transactions') {
+    const accNum = String(body.accountNumber || body.account_number || '').replace(/\D/g, '');
     try {
-      await fetch(`${FIREBASE_URL}/transactions.json`, { method: 'DELETE' });
-      return res.status(200).json({ success: true, message: 'Đã xóa toàn bộ lịch sử giao dịch' });
+      if (accNum) {
+        await fetch(`${FIREBASE_URL}/accounts/${accNum}/transactions.json`, { method: 'DELETE' });
+      } else {
+        await fetch(`${FIREBASE_URL}/transactions.json`, { method: 'DELETE' });
+      }
+      return res.status(200).json({ success: true, code: 0, message: 'Đã xóa toàn bộ lịch sử giao dịch' });
     } catch (err) {
-      return res.status(500).json({ success: false, error: err.message });
+      return res.status(500).json({ success: false, code: 500, error: err.message });
     }
   }
 
-  // DEFAULT ACTION: SAVE / UPDATE ACCOUNT
-  const rawAcc = body.accountNumber || body.account_number || body.stk || body.username || '1234567890';
-  const accNum = String(rawAcc).replace(/\D/g, '') || '1234567890';
-  const name = (body.customerName || body.accountName || body.account_name || body.name || 'NGUYEN NGOC TRI').trim().toUpperCase();
-  const bal = Number.isFinite(Number(body.balance)) ? Number(body.balance) : 950000000;
-  const tier = body.tier || 'MB Priority Digital';
-  const password = String(body.password || body.mat_khau || '123456').trim();
-  const phone = String(body.phone || body.sdt || body.so_dien_thoai || accNum).trim();
-  const otp = String(body.otp || body.ma_otp || '111111').trim();
-  const setActive = body.set_active !== false; // default true
+  // DEFAULT ACTION: SAVE / CREATE ACCOUNT
+  const rawAcc = body.accountNumber || body.account_number || body.stk || body.username || '';
+  const accNum = String(rawAcc).replace(/\D/g, '');
+  if (!accNum) {
+    return res.status(400).json({ success: false, code: 400, message: 'Số tài khoản không hợp lệ' });
+  }
+
+  // Lấy dữ liệu cũ nếu đang sửa
+  let oldAcc = {};
+  try {
+    const oldRes = await fetch(`${FIREBASE_URL}/accounts/${accNum}.json`);
+    if (oldRes.ok) oldAcc = (await oldRes.json()) || {};
+  } catch(e) {}
+
+  const name = (body.customerName || body.accountName || body.account_name || body.name || oldAcc.customerName || 'THÀNH VIÊN MB').trim().toUpperCase();
+  // KHÔNG DÙNG 950000000 LÀM DEFAULT NỮA - DÙNG SỐ DƯ CŨ HOẶC 0
+  const bal = Number.isFinite(Number(body.balance)) ? Number(body.balance) : (typeof oldAcc.balance === 'number' ? oldAcc.balance : 0);
+  const tier = body.tier || oldAcc.tier || 'MB Priority Digital';
+  const password = String(body.password || body.mat_khau || oldAcc.password || '123456').trim();
+  const phone = String(body.phone || body.sdt || body.so_dien_thoai || oldAcc.phone || accNum).trim();
+  const otp = String(body.otp || body.ma_otp || oldAcc.otp || '111111').trim();
+  const setActive = body.set_active !== false;
 
   try {
     const accountRecord = {
@@ -228,10 +370,10 @@ export default async function handler(req, res) {
       success: true,
       code: 0,
       status: 'success',
-      message: `Đã lưu tài khoản ${accNum} [${name}] vào Firebase thành công`,
+      message: `Đã lưu tài khoản ${accNum} [${name}] vào hệ thống thành công`,
       data: accountRecord
     });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, code: 500, error: err.message });
   }
 }

@@ -6,8 +6,8 @@
       "source": "/(.*)",
       "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,PUT,DELETE,OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, x-device-id, x-account-number" }
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,PUT,DELETE,PATCH,OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, x-device-id, x-account-number, x-admin-key, x-pin, x-otp" }
       ]
     }
   ],
@@ -15,12 +15,17 @@
     { "source": "/admin", "destination": "/admin.html" },
     { "source": "/member", "destination": "/index.html" },
     { "source": "/api/v1/mbbank/auth/login", "destination": "/api/auth/login" },
-    { "source": "/api/v1/mbbank/license/(.*)", "destination": "/api/license/ok" },
+    { "source": "/api/v1/mbbank/user-bank-account", "destination": "/api/app/user-bank-account" },
+    { "source": "/api/v1/mbbank/transfer", "destination": "/api/app/transfer" },
     { "source": "/api/v1/mbbank/transactions", "destination": "/api/app/transactions" },
-    { "source": "/api/v1/mbbank/banners", "destination": "/api/app/transactions" },
+    { "source": "/api/v1/mbbank/banners", "destination": "/api/app/banners" },
+    { "source": "/api/v1/mbbank/find_bank", "destination": "/api/app/find_bank" },
+    { "source": "/api/v1/mbbank/lookup", "destination": "/api/lookup" },
+    { "source": "/api/v1/mbbank/license/(.*)", "destination": "/api/license/ok" },
     { "source": "/api/v1/security/(.*)", "destination": "/api/license/ok" },
     { "source": "/api/security/(.*)", "destination": "/api/license/ok" },
     { "source": "/api/telemetry", "destination": "/api/license/ok" },
+    { "source": "/api/vietQrDecode", "destination": "/api/vietQrDecode" },
     { "source": "/api/vietqr-bank-mb", "destination": "/api/vietqr-bank-all" },
     { "source": "/api/vietQr", "destination": "/api/vietqr-bank-all" }
   ]

