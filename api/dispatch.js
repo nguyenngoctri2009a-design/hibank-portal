@@ -8,7 +8,7 @@ const FIREBASE_BASE = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.fireba
 const FIREBASE_URL = `${FIREBASE_BASE}/mbbank`;
 
 async function getLiveAccountsMap() {
-  const map = {};
+  const rawMap = {};
   let active = '';
   try {
     const [rootRes, mbRes] = await Promise.all([
@@ -22,7 +22,7 @@ async function getLiveAccountsMap() {
     for (const [k, v] of Object.entries(rootData)) {
       if (k !== 'mbbank' && v && typeof v === 'object') {
         if (v.TK || v.username || v.STK || v.accountNumber || v.balance !== undefined || v.TIEN !== undefined || v.MK || v.password) {
-          map[k] = { ...v, _folder: k };
+          rawMap[k] = { ...v, _folder: k };
         }
       }
     }
@@ -31,10 +31,10 @@ async function getLiveAccountsMap() {
     if (mbData.accounts && typeof mbData.accounts === 'object') {
       for (const [k, v] of Object.entries(mbData.accounts)) {
         if (v && typeof v === 'object') {
-          if (!map[k]) {
-            map[k] = { ...v, _folder: k };
+          if (!rawMap[k]) {
+            rawMap[k] = { ...v, _folder: k };
           } else {
-            map[k] = { ...v, ...map[k], _folder: map[k]._folder || k };
+            rawMap[k] = { ...v, ...rawMap[k], _folder: rawMap[k]._folder || k };
           }
         }
       }
@@ -44,6 +44,23 @@ async function getLiveAccountsMap() {
       active = String(mbData.active_account).trim();
     }
   } catch (e) {}
+
+  // 3. Khử trùng lặp: nếu 2 mục có cùng STK hoặc cùng TK, chỉ giữ 1 mục duy nhất
+  const map = {};
+  const seenSTK = new Set();
+  const seenTK = new Set();
+
+  for (const [k, acc] of Object.entries(rawMap)) {
+    const stk = String(acc.STK || acc.accountNumber || acc.stk || '').trim();
+    const tk = String(acc.TK || acc.username || k).trim().toLowerCase();
+
+    if ((stk && seenSTK.has(stk)) || (tk && seenTK.has(tk))) {
+      continue;
+    }
+    if (stk) seenSTK.add(stk);
+    if (tk) seenTK.add(tk);
+    map[k] = acc;
+  }
 
   return { accountsMap: map, activeAccount: active };
 }

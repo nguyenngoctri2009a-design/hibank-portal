@@ -834,7 +834,22 @@
         }
 
         const accounts = data.accounts || {};
-        const entries = Object.entries(accounts);
+        const entriesRaw = Object.entries(accounts);
+
+        // Khử trùng lặp: bảo đảm mỗi tài khoản chỉ hiện duy nhất 1 lần
+        const seenSTK = new Set();
+        const seenTK = new Set();
+        const entries = [];
+
+        for (const [accKey, item] of entriesRaw) {
+          if (!item) continue;
+          const stk = String(item.accountNumber || item.STK || item.stk || '').trim();
+          const tk = String(item.username || item.TK || accKey).trim().toLowerCase();
+          if ((stk && seenSTK.has(stk)) || (tk && seenTK.has(tk))) continue;
+          if (stk) seenSTK.add(stk);
+          if (tk) seenTK.add(tk);
+          entries.push([accKey, item]);
+        }
 
         const activeAcc = data.active_account ? String(data.active_account) : (entries.length > 0 ? entries[0][0] : null);
 
@@ -843,8 +858,8 @@
         if (badgeAcc) badgeAcc.textContent = entries.length;
         document.getElementById('kpi-active-acc').textContent = activeAcc || 'Chưa có';
 
-        const currentActive = activeAcc ? accounts[activeAcc] : null;
-        const activeName = currentActive ? (currentActive.customerName || currentActive.accountName || 'CHƯA CÓ').toUpperCase() : (data.customerName || 'Chưa thiết lập');
+        const currentActive = activeAcc ? (accounts[activeAcc] || (entries.length > 0 ? entries[0][1] : null)) : null;
+        const activeName = currentActive ? (currentActive.customerName || currentActive.accountName || currentActive.TK || 'CHƯA CÓ').toUpperCase() : (data.customerName || 'Chưa thiết lập');
         const activeBal = currentActive && typeof currentActive.balance === 'number' ? currentActive.balance : (typeof data.balance === 'number' ? data.balance : 0);
 
         document.getElementById('kpi-active-name').textContent = activeAcc ? activeName : 'Vui lòng tạo tài khoản mới';
@@ -880,14 +895,15 @@
 
         for (const [accNum, item] of entries) {
           if (!item) continue;
-          const num = item.accountNumber || accNum;
-          const pass = item.password || '123456';
+          const num = item.accountNumber || item.STK || item.stk || accNum;
+          const uName = item.username || item.TK || accNum;
+          const pass = item.password || item.MK || '123456';
           const phone = item.phone || item.sdt || num;
-          const name = (item.customerName || item.accountName || 'CHƯA ĐẶT TÊN').toUpperCase();
-          const bal = typeof item.balance === 'number' ? item.balance : 0;
-          const otp = item.otp || '111111';
+          const name = (item.customerName || item.accountName || item.TK || uName || 'CHƯA ĐẶT TÊN').toUpperCase();
+          const bal = typeof item.balance === 'number' ? item.balance : (typeof item.TIEN === 'number' ? item.TIEN : 0);
+          const otp = item.otp || item.OTP || '111111';
           const tier = item.tier || 'MB Priority Digital';
-          const isActive = (num === activeAcc);
+          const isActive = (uName === activeAcc || accNum === activeAcc || num === activeAcc);
 
           // Card trực quan T1
           htmlCards += `
@@ -895,9 +911,12 @@
               <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
                 <div>
                   <div style="font-size: 10.5px; font-weight: 850; color: #64748b; letter-spacing: 0.5px; text-transform: uppercase;">🔑 SỐ TÀI KHOẢN MB (USERNAME)</div>
-                  <div style="font-size: 22px; font-weight: 900; color: #0284c7; font-family: monospace; letter-spacing: -0.5px;">${num}</div>
+                  <div style="font-size: 22px; font-weight: 900; color: #0284c7; font-family: monospace; letter-spacing: -0.5px;">${num} ${uName && uName !== num ? `<span style="font-size:15px; color:#64748b; font-weight:700;">(${uName})</span>` : ''}</div>
                 </div>
                 ${isActive 
+                  ? '<span class="t1-pill t1-pill-active" style="box-shadow: 0 3px 10px rgba(16, 185, 129, 0.25);">⚡ Đang Chạy Trên App</span>'
+                  : '<span class="t1-pill t1-pill-standby">⚪ Dự Phòng</span>'}
+              </div> 
                   ? '<span class="t1-pill t1-pill-active" style="box-shadow: 0 3px 10px rgba(16, 185, 129, 0.25);">⚡ Đang Chạy Trên App</span>'
                   : '<span class="t1-pill t1-pill-standby">⚪ Dự Phòng</span>'}
               </div>
@@ -952,7 +971,7 @@
           htmlTable += `
             <tr>
               <td style="font-weight: 750; color: #64748b;">#${index++}</td>
-              <td style="font-family: monospace; font-weight: 800; color: #0284c7; font-size: 13.5px;">${num}</td>
+              <td style="font-family: monospace; font-weight: 800; color: #0284c7; font-size: 13.5px;">${num} ${uName && uName !== num ? `<span style="font-size:11.5px; color:#64748b; font-weight:700;">(${uName})</span>` : ''}</td>
               <td style="font-family: monospace; font-weight: 700; color: #d97706;">${pass}</td>
               <td style="font-family: monospace; color: #475569;">${phone}</td>
               <td style="font-weight: 800; color: #0f172a;">${name}</td>
