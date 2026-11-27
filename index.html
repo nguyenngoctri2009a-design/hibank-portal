@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MB Bank - Cổng Dịch Vụ Thành Viên</title>
+  <style>
+    /* ==========================================================================
+       T1 UNIVERSAL DESIGN SYSTEM CORE (MEMBER PORTAL)
+       ========================================================================== */
+    :root {
+      --t1-bg: #f8fafc;
+      --t1-card-bg: #ffffff;
+      --t1-border: #e2e8f0;
+      --t1-text: #0f172a;
+      --t1-text-muted: #64748b;
+
+      --t1-primary: #0284c7;
+      --t1-primary-gradient: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+      --t1-success: #10b981;
+      --t1-success-gradient: linear-gradient(135deg, #059669 0%, #10b981 100%);
+      --t1-gold: #f59e0b;
+      --t1-gold-gradient: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+      --t1-danger: #ef4444;
+      --t1-danger-gradient: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--t1-bg);
+      background-image: radial-gradient(#cbd5e1 0.8px, transparent 0.8px);
+      background-size: 24px 24px;
+      color: var(--t1-text);
+      min-height: 100vh;
+      padding: 32px 16px 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .t1-container {
+      width: 100%;
+      max-width: 1040px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+
+    /* HEADER T1 */
+    .t1-header {
+      text-align: center;
+      margin-bottom: 4px;
+    }
+    .t1-header h1 {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #0f172a 0%, #0369a1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+    .t1-header p {
+      font-size: 14px;
+      color: var(--t1-text-muted);
+      font-weight: 500;
+    }
+    .t1-live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #ecfdf5;
+      color: #047857;
+      border: 1.5px solid #a7f3d0;
+      padding: 5px 16px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      margin-top: 10px;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.12);
+    }
+    .t1-pulse-dot {
+      width: 9px;
+      height: 9px;
+      background: #10b981;
+      border-radius: 50%;
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+      animation: t1-pulse 1.8s infinite;
+    }
+    @keyframes t1-pulse {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    /* NÚT BẤM 3D T1 */
+    .t1-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 20px;
+      font-size: 13.5px;
+      font-weight: 850;
+      border-radius: 14px;
+      border: 1.5px solid transparent;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      text-decoration: none;
+    }
+    .t1-btn:hover {
+      transform: translateY(-2px);
+    }
+    .t1-btn:active {
+      transform: translateY(1px);
+    }
+
+    .t1-btn-primary {
+      background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%) padding-box,
+                  linear-gradient(135deg, #0284c7, #38bdf8) border-box;
+      color: #0369a1;
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.16), inset 0 1px 1px #ffffff;
+    }
+    .t1-btn-primary:hover {
+      box-shadow: 0 6px 18px rgba(2, 132, 199, 0.3);
+    }
+
+    .t1-btn-success {
+      background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%) padding-box,
+                  linear-gradient(135deg, #10b981, #34d399) border-box;
+      color: #047857;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.2), inset 0 1px 1px #ffffff;
+    }
+    .t1-btn-success:hover {
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+    }
+
+    .t1-btn-danger {
+      background: linear-gradient(180deg, #fee2e2 0%, #fecaca 100%) padding-box,
+                  linear-gradient(135deg, #ef4444, #f43f5e) border-box;
+      color: #991b1b;
+      box-shadow: 0 3px 10px rgba(239, 68, 68, 0.14), inset 0 1px 1px #ffffff;
+      padding: 6px 12px;
+      font-size: 12px;
+      border-radius: 10px;
+    }
+
+    .t1-btn-secondary {
+      background: #ffffff;
+      border: 1.5px solid #cbd5e1;
+      color: #475569;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      padding: 6px 14px;
+      font-size: 12px;
+      border-radius: 10px;
+    }
+    .t1-btn-secondary:hover {
+      background: #f8fafc;
+      border-color: #94a3b8;
+      color: #0f172a;
+    }
+
+    /* CARD T1 */
+    .t1-card {
+      background: #ffffff;
+      border-radius: 24px;
+      border: 1.5px solid var(--t1-border);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04), inset 0 1px 2px #ffffff;
+      padding: 24px 28px;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .t1-card-hover:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.07);
+    }
+    .t1-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 1.5px solid #f1f5f9;
+      padding-bottom: 14px;
+    }
+    .t1-card-title {
+      font-size: 17px;
+      font-weight: 850;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* KPI METRICS T1 */
+    .t1-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 16px;
+    }
+    .t1-kpi-card {
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      border-radius: 20px;
+      border: 1.5px solid #e2e8f0;
+      padding: 18px 20px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03), inset 0 1px 2px #ffffff;
+      display: flex;
+      flex-direction: column;
+      transition: all 0.2s ease;
+    }
+    .t1-kpi-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+    }
+    .t1-kpi-title {
+      font-size: 11px;
+      font-weight: 850;
+      color: #64748b;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .t1-kpi-number {
+      font-size: 22px;
+      font-weight: 900;
+      color: #0f172a;
+      letter-spacing: -0.4px;
+      line-height: 1.2;
+      font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+    }
+    .t1-kpi-sub {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #94a3b8;
+      margin-top: 6px;
+    }
+
+    /* FORM CHUẨN T1 */
+    .t1-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .t1-label {
+      font-size: 12px;
+      font-weight: 750;
+      color: #475569;
+    }
+    .t1-input, .t1-select {
+      width: 100%;
+      padding: 11px 14px;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: #0f172a;
+      background: #ffffff;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      outline: none;
+      transition: all 0.2s ease;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+    .t1-input:focus, .t1-select:focus {
+      border-color: #0ea5e9;
+      box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.02);
+    }
+
+    /* PILLS T1 */
+    .t1-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+    .t1-pill-bank {
+      background: #f0f9ff;
+      color: #0369a1;
+      border: 1px solid #bae6fd;
+    }
+
+    /* PRO TABLE T1 */
+    .t1-table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border-radius: 18px;
+      border: 1.5px solid #e2e8f0;
+      background: #ffffff;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
+      margin-top: 14px;
+    }
+    .t1-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13.5px;
+    }
+    .t1-table thead tr {
+      background: #f8fafc;
+      border-bottom: 1.5px solid #e2e8f0;
+      font-weight: 850;
+      color: #475569;
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .t1-table th, .t1-table td {
+      padding: 14px 18px;
+    }
+    .t1-table tbody tr {
+      border-bottom: 1px solid #f1f5f9;
+      transition: background 0.15s ease;
+    }
+    .t1-table tbody tr:hover {
+      background: #f8fafc;
+    }
+    .t1-table tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    .t1-log-box {
+      background: #0f172a;
+      color: #38bdf8;
+      border-radius: 16px;
+      padding: 16px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      max-height: 150px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border: 1.5px solid #1e293b;
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5);
+    }
+  </style>
+</head>
+<body class="t1-theme">
+
+  <div class="t1-container">
+
+    <!-- =====================================================================
+         MÀN HÌNH 1: FORM ĐĂNG NHẬP THÀNH VIÊN (KHI CHƯA LOGIN)
+         ===================================================================== -->
+    <div id="login-view" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 70vh;">
+      <div class="t1-card" style="width: 100%; max-width: 460px; padding: 36px 32px; text-align: center;">
+        
+        <div style="display:inline-flex; align-items:center; justify-content:center; width:64px; height:64px; background:linear-gradient(135deg, #e0f2fe, #bae6fd); border-radius:20px; margin-bottom:16px; box-shadow:0 4px 14px rgba(2, 132, 199, 0.15);">
+          <span style="font-size: 30px;">🏦</span>
+        </div>
+
+        <h2 style="font-size: 22px; font-weight: 900; color: #0f172a; margin-bottom: 6px;">
+          MB BANK PRO PORTAL
+        </h2>
+        <p style="font-size: 13.5px; color: var(--t1-text-muted); margin-bottom: 24px;">
+          Đăng nhập bằng Số tài khoản / SĐT và Mật khẩu được cấp để quản lý danh bạ thụ hưởng
+        </p>
+
+        <div id="live-active-info" style="display:flex; align-items:center; justify-content:center; gap:8px; background:#ecfdf5; border:1px solid #a7f3d0; padding:8px 14px; border-radius:12px; margin-bottom:18px; font-size:12px; font-weight:750; color:#047857;">
+          <span class="t1-pulse-dot"></span>
+          <span>App MB Active: <strong id="lbl-live-acc">1800123123</strong> | Số dư: <strong id="lbl-live-bal" style="color:#059669;">949.800.000 VND</strong></span>
+        </div>
+
+        <form id="member-login-form" style="display: flex; flex-direction: column; gap: 14px; text-align: left;">
+          <div class="t1-field">
+            <label class="t1-label">🔑 Số Tài Khoản / Tên Đăng Nhập / SĐT</label>
+            <input type="text" id="login-user" class="t1-input" placeholder="Ví dụ: 9999888899 hoặc 0988999888" required />
+          </div>
+
+          <div class="t1-field">
+            <label class="t1-label">🔒 Mật Khẩu</label>
+            <input type="password" id="login-pass" class="t1-input" placeholder="Nhập mật khẩu" required />
+          </div>
+
+          <div id="login-error" style="display: none; background: #fee2e2; color: #991b1b; padding: 10px 14px; border-radius: 10px; font-size: 12.5px; font-weight: 700; border: 1px solid #fca5a5;"></div>
+
+          <button type="submit" id="btn-login-submit" class="t1-btn t1-btn-primary" style="padding: 13px; font-size: 14px; margin-top: 6px;">
+            🚀 Đăng Nhập Vào Hệ Thống
+          </button>
+        </form>
+
+        <div style="margin-top: 20px; font-size: 12px; color: #94a3b8;">
+          Chưa có tài khoản? Vui lòng liên hệ Admin để được cấp tài khoản và mật khẩu đăng nhập.
+        </div>
+      </div>
+    </div>
+
+    <!-- =====================================================================
+         MÀN HÌNH 2: DASHBOARD THÀNH VIÊN (KHI ĐÃ LOGIN THÀNH CÔNG)
+         ===================================================================== -->
+    <div id="portal-view" style="display: none; flex-direction: column; gap: 22px;">
+      
+      <!-- THANH TRẠNG THÁI THÀNH VIÊN VÀ ĐĂNG XUẤT -->
+      <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 20px; padding: 14px 24px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03);">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="font-size: 24px;">👤</span>
+          <div>
+            <div style="font-size: 14px; font-weight: 850; color: #0f172a;">
+              Xin chào: <span id="user-greeting-name" style="color: #0284c7;">-</span>
+            </div>
+            <div style="font-size: 12px; color: #64748b; font-family: monospace;">
+              STK: <strong id="user-greeting-acc" style="color: #0f172a;">-</strong> | SĐT: <span id="user-greeting-phone">-</span> | OTP: <span id="user-greeting-otp" style="color:#7c3aed; font-weight:700;">-</span>
+            </div>
+          </div>
+        </div>
+
+        <button class="t1-btn t1-btn-secondary" onclick="memberLogout()" style="padding: 8px 16px;">
+          🚪 Đăng Xuất
+        </button>
+      </div>
+
+      <!-- HEADER PORTAL -->
+      <header class="t1-header">
+        <h1>CỔNG DỊCH VỤ THÀNH VIÊN MB BANK</h1>
+        <p>Quản Lý Danh Bạ Người Thụ Hưởng &amp; Tự Động Đồng Bộ Trực Tiếp Lên App MB</p>
+        <div>
+          <span class="t1-live-badge">
+            <span class="t1-pulse-dot"></span>
+            Tài Khoản Đang Kích Hoạt Hoạt Động Trên App MB
+          </span>
+        </div>
+      </header>
+
+      <!-- KHỐI 1: THÔNG TIN TÀI KHOẢN CÁ NHÂN (4 THẺ KPI T1) -->
+      <section class="t1-card t1-card-hover">
+        <div class="t1-card-header">
+          <div class="t1-card-title">
+            <span style="display:inline-block; width:12px; height:12px; background:var(--t1-primary); border-radius:4px;"></span>
+            1. Tài Khoản Của Bạn Trên App MB
+          </div>
+          <button class="t1-btn t1-btn-secondary" onclick="loadUserAccount()">
+            🔄 Làm mới
+          </button>
+        </div>
+
+        <div class="t1-kpi-grid">
+          <div class="t1-kpi-card">
+            <div class="t1-kpi-title">👤 Chủ Tài Khoản</div>
+            <div class="t1-kpi-number" id="stat-name">-</div>
+            <div class="t1-kpi-sub">Định danh chính chủ</div>
+          </div>
+
+          <div class="t1-kpi-card">
+            <div class="t1-kpi-title">💳 Số Tài Khoản MB</div>
+            <div class="t1-kpi-number" id="stat-acc" style="color:#0284c7;">-</div>
+            <div class="t1-kpi-sub">Tài khoản thanh toán</div>
+          </div>
+
+          <div class="t1-kpi-card">
+            <div class="t1-kpi-title">💰 Số Dư Khả Dụng</div>
+            <div class="t1-kpi-number" id="stat-bal" style="color:#059669;">-</div>
+            <div class="t1-kpi-sub">Tự động trừ khi chuyển tiền</div>
+          </div>
+
+          <div class="t1-kpi-card">
+            <div class="t1-kpi-title">⭐ Hạng Tài Khoản</div>
+            <div class="t1-kpi-number" id="stat-tier" style="color:#d97706; font-size:18px;">-</div>
+            <div class="t1-kpi-sub">Hạn mức tối đa</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- KHỐI 2: QUẢN LÝ DANH BẠ NGƯỜI THỤ HƯỞNG (ĐÚNG 1 BUTTON DUY NHẤT) -->
+      <section class="t1-card t1-card-hover">
+        <div class="t1-card-header">
+          <div class="t1-card-title">
+            <span style="display:inline-block; width:12px; height:12px; background:var(--t1-success); border-radius:4px;"></span>
+            2. Quản Lý Danh Bạ Người Thụ Hưởng (Điền STK + Chọn Ngân Hàng ➔ Ra Tên Chỉ Định)
+          </div>
+        </div>
+        <p style="color: var(--t1-text-muted); font-size: 13.5px; margin-bottom: 20px;">
+          Khi bạn hoặc khách hàng chuyển tiền trên App MB Bank, chỉ cần gõ đúng số tài khoản và ngân hàng đã lưu dưới đây, App sẽ tự động hiển thị chính xác tên người thụ hưởng bạn đã đặt. Nếu chưa lưu, App sẽ báo <strong>"Tài khoản không tồn tại"</strong>.
+        </p>
+
+        <!-- FORM THÊM NGƯỜI NHẬN - ĐÚNG 1 BUTTON DUY NHẤT -->
+        <div style="display: grid; grid-template-columns: 1.2fr 1.6fr 2.2fr auto; gap: 12px; align-items: flex-end; margin-bottom: 22px;">
+          <div class="t1-field">
+            <label class="t1-label">Ngân hàng nhận</label>
+            <select id="rec-bank" class="t1-select">
+              <option value="MB">MBBank (Quân Đội)</option>
+              <option value="VCB">Vietcombank</option>
+              <option value="TCB">Techcombank</option>
+              <option value="ACB">ACB</option>
+              <option value="BIDV">BIDV</option>
+              <option value="VPB">VPBank</option>
+              <option value="CTG">VietinBank</option>
+              <option value="TPB">TPBank</option>
+              <option value="SHB">SHB</option>
+              <option value="VIB">VIB</option>
+              <option value="STB">Sacombank</option>
+              <option value="MSB">MSB</option>
+              <option value="HDB">HDBank</option>
+              <option value="OCB">OCB</option>
+              <option value="LPB">LPBank</option>
+              <option value="MOMO">Ví MoMo</option>
+              <option value="ZALOPAY">Ví ZaloPay</option>
+            </select>
+          </div>
+
+          <div class="t1-field">
+            <label class="t1-label">Số tài khoản / SĐT nhận</label>
+            <input type="text" id="rec-acc" class="t1-input" placeholder="Ví dụ: 0987654321" />
+          </div>
+
+          <div class="t1-field">
+            <label class="t1-label">Tên chủ tài khoản người nhận</label>
+            <input type="text" id="rec-name" class="t1-input" placeholder="Ví dụ: TRAN THI KIM CHI" style="text-transform: uppercase;" />
+          </div>
+
+          <!-- ĐÚNG 1 BUTTON DUY NHẤT -->
+          <button id="btn-save-rec" class="t1-btn t1-btn-success" style="height: 44px; white-space: nowrap;">
+            ⚡ Lưu Lên Firebase &amp; Đồng Bộ Ngay
+          </button>
+        </div>
+
+        <!-- KHUNG TEST TRA CỨU NHANH T1 -->
+        <div style="background: linear-gradient(180deg, #f0fdf4 0%, #ecfdf5 100%); border: 1.5px dashed #a7f3d0; border-radius: 16px; padding: 16px; margin-bottom: 22px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <label style="color:#047857; font-weight:800; font-size:13px;">🔍 Kiểm Tra Nhanh Xem App Sẽ Phản Hồi Tên Gì:</label>
+            <button id="btn-test-lookup" class="t1-btn t1-btn-primary" style="padding: 6px 14px; font-size: 12px;">
+              Bấm Để Tra Cứu Thử
+            </button>
+          </div>
+          <div id="test-result-display" style="font-size: 13.5px; color: #334155; font-family: 'SFMono-Regular', Consolas, monospace; font-weight: 600;">
+            Nhập STK và chọn ngân hàng ở trên rồi bấm nút để test kết quả trả về từ API `/api/app/find_bank`.
+          </div>
+        </div>
+
+        <!-- DANH SÁCH DANH BẠ ĐANG HOẠT ĐỘNG (T1 PRO TABLE) -->
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label style="font-weight: 800; color: #0f172a; font-size: 14px;">
+              📋 Danh Sách Người Thụ Hưởng Đang Hoạt Động (Firebase Realtime)
+            </label>
+            <button id="btn-refresh-rec" class="t1-btn t1-btn-secondary">
+              Làm mới danh sách
+            </button>
+          </div>
+
+          <div class="t1-table-wrap">
+            <table class="t1-table">
+              <thead>
+                <tr>
+                  <th style="width: 80px;">STT</th>
+                  <th style="width: 140px;">Ngân Hàng</th>
+                  <th>Số Tài Khoản / SĐT</th>
+                  <th>Tên Thụ Hưởng Hiển Thị</th>
+                  <th style="width: 100px; text-align: center;">Thao Tác</th>
+                </tr>
+              </thead>
+              <tbody id="recipients-tbody">
+                <tr>
+                  <td colspan="5" style="text-align: center; color: var(--t1-text-muted); padding: 24px;">
+                    Đang tải danh bạ từ Firebase...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- KHỐI 3: NHẬT KÝ KẾT NỐI & BIẾN ĐỘNG SỐ DƯ (LOG TERMINAL T1) -->
+      <section class="t1-card t1-card-hover">
+        <div class="t1-card-header">
+          <div class="t1-card-title">
+            <span style="display:inline-block; width:12px; height:12px; background:var(--t1-gold); border-radius:4px;"></span>
+            3. Nhật Ký Kết Nối &amp; Biến Động Số Dư (Inter-App Handover Log)
+          </div>
+        </div>
+        <pre id="pipeline-log" class="t1-log-box">// Lắng nghe biến động số dư và kết nối từ App MB Bank realtime...</pre>
+      </section>
+
+    </div>
+
+  </div>
+
+  <script>
+    const FIREBASE_BASE = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/mbbank';
+    const logBox = document.getElementById('pipeline-log');
+
+    function log(msg) {
+      if (!logBox) return;
+      const time = new Date().toLocaleTimeString();
+      logBox.textContent = `[${time}] ${msg}\n` + logBox.textContent;
+    }
+
+    let currentSession = null;
+    let lastBalance = null;
+
+    // =========================================================================
+    // 1. QUẢN LÝ ĐĂNG NHẬP THÀNH VIÊN
+    // =========================================================================
+    function checkSession() {
+      const saved = localStorage.getItem('mb_member_session');
+      if (saved) {
+        try {
+          currentSession = JSON.parse(saved);
+          showPortalView();
+          return;
+        } catch (e) {}
+      }
+      showLoginView();
+    }
+
+    function showLoginView() {
+      document.getElementById('login-view').style.display = 'flex';
+      document.getElementById('portal-view').style.display = 'none';
+    }
+
+    function showPortalView() {
+      document.getElementById('login-view').style.display = 'none';
+      document.getElementById('portal-view').style.display = 'flex';
+      loadUserAccount();
+      loadRecipientsList();
+    }
+
+    function memberLogout() {
+      localStorage.removeItem('mb_member_session');
+      currentSession = null;
+      showLoginView();
+    }
+
+    // XỬ LÝ SUBMIT FORM ĐĂNG NHẬP
+    document.getElementById('member-login-form')?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const user = document.getElementById('login-user').value.trim();
+      const pass = document.getElementById('login-pass').value.trim();
+      const errBox = document.getElementById('login-error');
+      const btn = document.getElementById('btn-login-submit');
+
+      errBox.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = 'Đang xác thực đăng nhập...';
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: user,
+            password: pass
+          })
+        });
+        const data = await res.json();
+
+        if (data.success && data.user) {
+          currentSession = data.user;
+          localStorage.setItem('mb_member_session', JSON.stringify(data.user));
+          showPortalView();
+        } else {
+          errBox.textContent = data.message || 'Tài khoản hoặc mật khẩu không chính xác';
+          errBox.style.display = 'block';
+        }
+      } catch (err) {
+        errBox.textContent = 'Lỗi kết nối máy chủ: ' + err.message;
+        errBox.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🚀 Đăng Nhập Vào Hệ Thống';
+      }
+    });
+
+    // =========================================================================
+    async function updateLoginBanner() {
+      try {
+        const res = await fetch(`${FIREBASE_BASE}.json?ts=${Date.now()}`, { cache: 'no-store' });
+        if (res.ok) {
+          const root = await res.json();
+          if (root) {
+            const actAcc = root.active_account || root.accountNumber || '-';
+            const bal = typeof root.balance === 'number' ? root.balance.toLocaleString('vi-VN') + ' VND' : '0 VND';
+            const elAcc = document.getElementById('lbl-live-acc');
+            const elBal = document.getElementById('lbl-live-bal');
+            if (elAcc) elAcc.textContent = actAcc;
+            if (elBal) elBal.textContent = bal;
+          }
+        }
+      } catch (e) {}
+    }
+
+    // 2. TẢI THÔNG TIN TÀI KHOẢN CÁ NHÂN
+    // =========================================================================
+    async function loadUserAccount(silent = false) {
+      if (!currentSession) return;
+      const accNum = currentSession.accountNumber || currentSession.username;
+
+      try {
+        const [accRes, rootRes] = await Promise.all([
+          fetch(`${FIREBASE_BASE}/accounts/${accNum}.json?ts=${Date.now()}`, { cache: 'no-store' }),
+          fetch(`${FIREBASE_BASE}.json?ts=${Date.now()}`, { cache: 'no-store' })
+        ]);
+
+        const accData = accRes.ok ? await accRes.json() : null;
+        const root = rootRes.ok ? (await rootRes.json()) || {} : {};
+
+        const activeKey = root.active_account ? String(root.active_account).replace(/\D/g, '') : null;
+        const isActiveThis = (accNum === activeKey);
+
+        const name = (accData?.customerName || accData?.accountName || (isActiveThis ? root.customerName : null) || currentSession.customerName || 'THÀNH VIÊN MB').toUpperCase();
+        const num = accData?.accountNumber || accNum;
+        
+        let bal = 0;
+        if (isActiveThis && typeof root.balance === 'number') {
+          bal = root.balance;
+        } else if (typeof accData?.balance === 'number') {
+          bal = accData.balance;
+        } else if (typeof root.balance === 'number') {
+          bal = root.balance;
+        }
+        const tier = accData?.tier || currentSession.tier || 'Priority Digital';
+        const phone = accData?.phone || currentSession.phone || num;
+        const otp = accData?.otp || currentSession.otp || '111111';
+
+        // Cập nhật giao diện
+        document.getElementById('user-greeting-name').textContent = name;
+        document.getElementById('user-greeting-acc').textContent = num;
+        document.getElementById('user-greeting-phone').textContent = phone;
+        document.getElementById('user-greeting-otp').textContent = otp;
+
+        document.getElementById('stat-name').textContent = name;
+        document.getElementById('stat-acc').textContent = num;
+        document.getElementById('stat-bal').textContent = Number(bal).toLocaleString('vi-VN') + ' VND';
+        document.getElementById('stat-tier').textContent = tier;
+
+        if (lastBalance !== null && lastBalance !== bal) {
+          log(`⚡ Phát hiện giao dịch từ App MB! Số dư vừa cập nhật: ${lastBalance.toLocaleString('vi-VN')} đ ➔ ${Number(bal).toLocaleString('vi-VN')} đ`);
+        }
+        lastBalance = bal;
+
+        if (!silent) {
+          log(`Đã đồng bộ tài khoản: [${num}] ${name} | Số dư khả dụng: ${Number(bal).toLocaleString('vi-VN')} VND`);
+        }
+      } catch (err) {
+        if (!silent) log(`Lỗi tải dữ liệu tài khoản: ${err.message}`);
+      }
+    }
+
+    // =========================================================================
+    // 3. QUẢN LÝ DANH BẠ NGƯỜI THỤ HƯỞNG (ĐÚNG 1 NÚT BẤM)
+    // =========================================================================
+    async function loadRecipientsList() {
+      const tbody = document.getElementById('recipients-tbody');
+      if (!tbody) return;
+      try {
+        const res = await fetch(`${FIREBASE_BASE}/recipients.json`);
+        const data = res.ok ? (await res.json()) || {} : {};
+
+        const entries = Object.entries(data);
+        if (entries.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="5" style="text-align: center; color: var(--t1-text-muted); padding: 24px;">
+                Chưa có người nhận nào được lưu trên Firebase. Điền STK và bấm nút bên trên để thêm!
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        const rendered = new Set();
+        let rows = '';
+        let index = 1;
+
+        for (const [key, item] of entries) {
+          if (!item || !item.accountNumber) continue;
+          const uniqueId = `${item.bankCode || 'MB'}_${item.accountNumber}`;
+          if (rendered.has(uniqueId)) continue;
+          rendered.add(uniqueId);
+
+          const bank = item.bankCode || 'MB';
+          const acc = item.accountNumber;
+          const name = (item.customerName || item.accountName || 'CHƯA ĐẶT TÊN').toUpperCase();
+
+          rows += `
+            <tr>
+              <td style="font-weight: 750; color: #64748b;">#${index++}</td>
+              <td><span class="t1-pill t1-pill-bank">${bank}</span></td>
+              <td style="font-family: monospace; font-weight: 700; color: #0284c7; font-size: 14px;">${acc}</td>
+              <td style="font-weight: 800; color: #0f172a;">${name}</td>
+              <td style="text-align: center;">
+                <button class="t1-btn t1-btn-danger" onclick="deleteRecipient('${acc}', '${bank}')">
+                  Xóa
+                </button>
+              </td>
+            </tr>
+          `;
+        }
+
+        tbody.innerHTML = rows || `
+          <tr>
+            <td colspan="5" style="text-align: center; color: var(--t1-text-muted); padding: 24px;">
+              Chưa có người nhận nào.
+            </td>
+          </tr>
+        `;
+      } catch (err) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" style="text-align: center; color: #dc2626; padding: 24px;">
+              Lỗi tải danh bạ: ${err.message}
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    async function saveRecipient() {
+      const bank = document.getElementById('rec-bank').value;
+      const acc = document.getElementById('rec-acc').value.trim();
+      const name = document.getElementById('rec-name').value.trim().toUpperCase();
+
+      if (!acc) {
+        alert('Vui lòng nhập số tài khoản hoặc số điện thoại người nhận!');
+        return;
+      }
+      if (!name) {
+        alert('Vui lòng nhập họ và tên người nhận!');
+        return;
+      }
+
+      const cleanAcc = acc.replace(/\D/g, '');
+      const payload = {
+        accountNumber: cleanAcc,
+        bankCode: bank,
+        customerName: name,
+        accountName: name,
+        updatedAt: new Date().toISOString()
+      };
+
+      const btn = document.getElementById('btn-save-rec');
+      btn.disabled = true;
+      btn.textContent = 'Đang lưu lên Firebase...';
+
+      try {
+        await Promise.all([
+          fetch(`${FIREBASE_BASE}/recipients/${cleanAcc}.json`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          }),
+          fetch(`${FIREBASE_BASE}/recipients/${bank}_${cleanAcc}.json`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          })
+        ]);
+
+        log(`✅ Đã lưu danh bạ: [${bank}] ${cleanAcc} ➔ ${name}. App MB Bank sẽ nhận diện ngay!`);
+        alert(`✅ ĐÃ LƯU THÀNH CÔNG!\n\nNgân hàng: ${bank}\nSố tài khoản: ${cleanAcc}\nTên thụ hưởng: ${name}\n\nKhi mở App MB Bank chuyển tiền đến số này, App sẽ tự động hiển thị chính xác tên ${name}.`);
+        document.getElementById('rec-acc').value = '';
+        document.getElementById('rec-name').value = '';
+        await loadRecipientsList();
+      } catch (err) {
+        log(`❌ Lỗi lưu Firebase: ${err.message}`);
+        alert('Lỗi: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '⚡ Lưu Lên Firebase & Đồng Bộ Ngay';
+      }
+    }
+
+    async function deleteRecipient(acc, bank) {
+      if (!confirm(`Xác nhận xóa tài khoản [${bank}] ${acc} khỏi danh bạ thụ hưởng trên Firebase?`)) return;
+      try {
+        const cleanAcc = acc.replace(/\D/g, '');
+        await Promise.all([
+          fetch(`${FIREBASE_BASE}/recipients/${cleanAcc}.json`, { method: 'DELETE' }),
+          fetch(`${FIREBASE_BASE}/recipients/${bank}_${cleanAcc}.json`, { method: 'DELETE' })
+        ]);
+        log(`Đã xóa người nhận [${bank}] ${acc} khỏi Firebase.`);
+        await loadRecipientsList();
+      } catch (err) {
+        alert('Lỗi xóa: ' + err.message);
+      }
+    }
+
+    async function testLookup() {
+      const bank = document.getElementById('rec-bank').value;
+      const acc = document.getElementById('rec-acc').value.trim() || '0987654321';
+      const display = document.getElementById('test-result-display');
+      display.textContent = `Đang tra cứu từ API: /api/app/find_bank?account_number=${acc}&bank_code=${bank}...`;
+
+      try {
+        const res = await fetch(`/api/app/find_bank?account_number=${acc}&bank_code=${bank}`);
+        const data = await res.json();
+        if (data && data.success) {
+          display.innerHTML = `✅ Kết quả phản hồi App MB: <strong style="color:#059669; font-size:15px;">${data.account_name || data.customerName}</strong> [${data.bank_name || bank}]`;
+          log(`Tra cứu thử [${bank}] ${acc} ➔ ${data.account_name}`);
+        } else {
+          display.innerHTML = `❌ Phản hồi App MB: <strong style="color:#dc2626;">${data.message || 'Tài khoản không tồn tại'}</strong>`;
+          log(`Tra cứu thử [${bank}] ${acc} ➔ Không tồn tại`);
+        }
+      } catch (err) {
+        display.textContent = 'Lỗi tra cứu: ' + err.message;
+      }
+    }
+
+    document.getElementById('btn-save-rec')?.addEventListener('click', saveRecipient);
+    document.getElementById('btn-refresh-rec')?.addEventListener('click', loadRecipientsList);
+    document.getElementById('btn-test-lookup')?.addEventListener('click', testLookup);
+
+    window.addEventListener('DOMContentLoaded', () => {
+      checkSession();
+      updateLoginBanner();
+
+      // Đồng bộ thời gian thực mỗi 2.5 giây
+      setInterval(() => {
+        updateLoginBanner();
+        if (currentSession) {
+          loadUserAccount(true);
+        }
+      }, 2500);
+    });
+  </script>
+</body>
+</html>

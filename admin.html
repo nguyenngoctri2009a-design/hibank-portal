@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MB Bank Admin - Cổng Quản Trị & Cấp Tài Khoản (T1 Pro)</title>
+  <style>
+    /* ==========================================================================
+       T1 UNIVERSAL DESIGN SYSTEM CORE (ADMIN PORTAL)
+       ========================================================================== */
+    :root {
+      --t1-bg: #f8fafc;
+      --t1-card-bg: #ffffff;
+      --t1-border: #e2e8f0;
+      --t1-text: #0f172a;
+      --t1-text-muted: #64748b;
+
+      --t1-primary: #0284c7;
+      --t1-primary-gradient: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+      --t1-success: #10b981;
+      --t1-success-gradient: linear-gradient(135deg, #059669 0%, #10b981 100%);
+      --t1-gold: #f59e0b;
+      --t1-gold-gradient: linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+      --t1-danger: #ef4444;
+      --t1-danger-gradient: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    /* Nền Lưới Chấm Vi Tế Chuẩn T1 */
+    body {
+      background-color: var(--t1-bg);
+      background-image: radial-gradient(#cbd5e1 0.8px, transparent 0.8px);
+      background-size: 24px 24px;
+      color: var(--t1-text);
+      min-height: 100vh;
+      padding: 24px 16px 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .t1-container {
+      width: 100%;
+      max-width: 1140px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+
+    /* THANH ĐIỀU HƯỚNG T1 CHUYỂN TRANG THÀNH VIÊN / ADMIN */
+    .t1-nav-bar {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 6px;
+    }
+    .t1-nav-tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 22px;
+      border-radius: 999px;
+      font-size: 13.5px;
+      font-weight: 850;
+      text-decoration: none;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: pointer;
+    }
+    .t1-nav-tab.active {
+      background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%) padding-box,
+                  linear-gradient(135deg, #f59e0b, #fbbf24) border-box;
+      border: 1.5px solid transparent;
+      color: #92400e;
+      box-shadow: 0 4px 14px rgba(245, 158, 11, 0.2), inset 0 1px 1px #ffffff;
+    }
+    .t1-nav-tab.inactive {
+      background: #ffffff;
+      border: 1.5px solid #cbd5e1;
+      color: #475569;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    .t1-nav-tab.inactive:hover {
+      background: #f8fafc;
+      color: #0f172a;
+      transform: translateY(-2px);
+    }
+
+    /* HEADER T1 */
+    .t1-header {
+      text-align: center;
+      margin-bottom: 4px;
+    }
+    .t1-header h1 {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #0f172a 0%, #b45309 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+    .t1-header p {
+      font-size: 14px;
+      color: var(--t1-text-muted);
+      font-weight: 500;
+    }
+    .t1-live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #fffbeb;
+      color: #b45309;
+      border: 1.5px solid #fde68a;
+      padding: 5px 16px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      margin-top: 10px;
+      box-shadow: 0 2px 8px rgba(245, 158, 11, 0.12);
+    }
+    .t1-pulse-dot {
+      width: 9px;
+      height: 9px;
+      background: #f59e0b;
+      border-radius: 50%;
+      box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
+      animation: t1-pulse-gold 1.8s infinite;
+    }
+    @keyframes t1-pulse-gold {
+      0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+      70% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+    }
+
+    /* NÚT BẤM 3D T1 */
+    .t1-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 9px 16px;
+      font-size: 13px;
+      font-weight: 850;
+      border-radius: 12px;
+      border: 1.5px solid transparent;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      text-decoration: none;
+    }
+    .t1-btn:hover {
+      transform: translateY(-2px);
+    }
+    .t1-btn:active {
+      transform: translateY(1px);
+    }
+
+    .t1-btn-primary {
+      background: linear-gradient(180deg, #f0f9ff 0%, #e0f2fe 100%) padding-box,
+                  linear-gradient(135deg, #0284c7, #38bdf8) border-box;
+      color: #0369a1;
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.16), inset 0 1px 1px #ffffff;
+    }
+    .t1-btn-primary:hover {
+      box-shadow: 0 6px 18px rgba(2, 132, 199, 0.3);
+    }
+
+    .t1-btn-gold {
+      background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%) padding-box,
+                  linear-gradient(135deg, #f59e0b, #fbbf24) border-box;
+      color: #92400e;
+      box-shadow: 0 4px 14px rgba(245, 158, 11, 0.22), inset 0 1px 1px #ffffff;
+    }
+    .t1-btn-gold:hover {
+      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35);
+    }
+
+    .t1-btn-success {
+      background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%) padding-box,
+                  linear-gradient(135deg, #10b981, #34d399) border-box;
+      color: #047857;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.2), inset 0 1px 1px #ffffff;
+    }
+    .t1-btn-success:hover {
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+    }
+
+    .t1-btn-danger {
+      background: linear-gradient(180deg, #fee2e2 0%, #fecaca 100%) padding-box,
+                  linear-gradient(135deg, #ef4444, #f43f5e) border-box;
+      color: #991b1b;
+      box-shadow: 0 3px 10px rgba(239, 68, 68, 0.14), inset 0 1px 1px #ffffff;
+      padding: 6px 12px;
+      font-size: 11.5px;
+      border-radius: 9px;
+    }
+    .t1-btn-danger:hover {
+      box-shadow: 0 4px 14px rgba(239, 68, 68, 0.28);
+    }
+
+    .t1-btn-secondary {
+      background: #ffffff;
+      border: 1.5px solid #cbd5e1;
+      color: #475569;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      padding: 6px 14px;
+      font-size: 12px;
+      border-radius: 10px;
+    }
+    .t1-btn-secondary:hover {
+      background: #f8fafc;
+      border-color: #94a3b8;
+      color: #0f172a;
+    }
+
+    /* CARD T1 */
+    .t1-card {
+      background: #ffffff;
+      border-radius: 24px;
+      border: 1.5px solid var(--t1-border);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.04), inset 0 1px 2px #ffffff;
+      padding: 24px 28px;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .t1-card-hover:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.07);
+    }
+    .t1-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 1.5px solid #f1f5f9;
+      padding-bottom: 14px;
+    }
+    .t1-card-title {
+      font-size: 17px;
+      font-weight: 850;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* KPI METRICS T1 */
+    .t1-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 16px;
+    }
+    .t1-kpi-card {
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      border-radius: 20px;
+      border: 1.5px solid #e2e8f0;
+      padding: 18px 20px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.03), inset 0 1px 2px #ffffff;
+      display: flex;
+      flex-direction: column;
+      transition: all 0.2s ease;
+    }
+    .t1-kpi-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+    }
+    .t1-kpi-title {
+      font-size: 11px;
+      font-weight: 850;
+      color: #64748b;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .t1-kpi-number {
+      font-size: 22px;
+      font-weight: 900;
+      color: #0f172a;
+      letter-spacing: -0.4px;
+      line-height: 1.2;
+      font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+    }
+    .t1-kpi-sub {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #94a3b8;
+      margin-top: 6px;
+    }
+
+    /* FORM CHUẨN T1 */
+    .t1-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .t1-label {
+      font-size: 12px;
+      font-weight: 750;
+      color: #475569;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .t1-input, .t1-select {
+      width: 100%;
+      padding: 11px 14px;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: #0f172a;
+      background: #ffffff;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 12px;
+      outline: none;
+      transition: all 0.2s ease;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+    .t1-input:focus, .t1-select:focus {
+      border-color: #f59e0b;
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15), inset 0 1px 2px rgba(0, 0, 0, 0.02);
+    }
+
+    /* PILLS T1 */
+    .t1-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+    .t1-pill-active {
+      background: #ecfdf5;
+      color: #047857;
+      border: 1px solid #a7f3d0;
+    }
+    .t1-pill-standby {
+      background: #f1f5f9;
+      color: #64748b;
+      border: 1px solid #cbd5e1;
+    }
+
+    /* PRO TABLE T1 */
+    .t1-table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      border-radius: 18px;
+      border: 1.5px solid #e2e8f0;
+      background: #ffffff;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
+      margin-top: 14px;
+    }
+    .t1-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 13px;
+    }
+    .t1-table thead tr {
+      background: #f8fafc;
+      border-bottom: 1.5px solid #e2e8f0;
+      font-weight: 850;
+      color: #475569;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .t1-table th, .t1-table td {
+      padding: 12px 14px;
+    }
+    .t1-table tbody tr {
+      border-bottom: 1px solid #f1f5f9;
+      transition: background 0.15s ease;
+    }
+    .t1-table tbody tr:hover {
+      background: #f8fafc;
+    }
+    .t1-table tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    .t1-log-box {
+      background: #0f172a;
+      color: #38bdf8;
+      border-radius: 16px;
+      padding: 16px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      max-height: 150px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border: 1.5px solid #1e293b;
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5);
+    }
+  </style>
+</head>
+<body class="t1-theme">
+
+  <div class="t1-container">
+
+    <!-- =====================================================================
+         MÀN HÌNH KHÓA BẢO MẬT ADMIN
+         ===================================================================== -->
+    <div id="admin-lock-view" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 75vh; padding: 20px 0;">
+      <div class="t1-card" style="width: 100%; max-width: 440px; padding: 36px 30px; text-align: center; border: 2px solid #f59e0b;">
+        
+        <div style="display:inline-flex; align-items:center; justify-content:center; width:68px; height:68px; background:linear-gradient(135deg, #fef3c7, #fde68a); border-radius:22px; margin-bottom:18px; box-shadow:0 6px 18px rgba(245, 158, 11, 0.25);">
+          <span style="font-size: 34px;">🔐</span>
+        </div>
+
+        <h2 style="font-size: 22px; font-weight: 900; color: #0f172a; margin-bottom: 8px; letter-spacing: -0.3px;">
+          MB BANK ADMIN GATE
+        </h2>
+        <p style="font-size: 13.5px; color: var(--t1-text-muted); margin-bottom: 24px; line-height: 1.5;">
+          Khu vực quản trị cấp cao. Vui lòng nhập <strong>Mã Khóa Bảo Mật (Admin Key)</strong> để mở quyền điều khiển hệ thống.
+        </p>
+
+        <form id="admin-key-form" style="display: flex; flex-direction: column; gap: 14px; text-align: left;">
+          <div class="t1-field">
+            <label class="t1-label">🔑 Mã Khóa Admin (Security Key)</label>
+            <input type="password" id="input-admin-key" class="t1-input" placeholder="••••••••" required autofocus autocomplete="current-password" style="font-size: 16px; letter-spacing: 4px; text-align: center;" />
+          </div>
+
+          <div id="key-error" style="display: none; background: #fee2e2; color: #991b1b; padding: 11px 14px; border-radius: 12px; font-size: 12.5px; font-weight: 750; border: 1.5px solid #fca5a5;"></div>
+
+          <button type="submit" id="btn-unlock-admin" class="t1-btn t1-btn-gold" style="padding: 13px; font-size: 14px; margin-top: 6px;">
+            🔓 Mở Khóa Quản Trị Hệ Thống
+          </button>
+        </form>
+
+        <div style="margin-top: 24px; font-size: 11.5px; color: #94a3b8; display: flex; align-items: center; justify-content: center; gap: 6px;">
+          <span>🛡️</span> Hệ thống khóa độc quyền Root Dispatcher Active
+        </div>
+      </div>
+    </div>
+
+    <!-- =====================================================================
+         GIAO DIỆN QUẢN TRỊ ADMIN (KHI ĐÃ MỞ KHÓA)
+         ===================================================================== -->
+    <div id="admin-main-view" style="display: none;">
+
+      <!-- HEADER ADMIN -->
+      <header class="t1-header">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <h1>CỔNG QUẢN TRỊ ADMIN - MB BANK</h1>
+            <p>Cấp Đầy Đủ Tài Khoản, Mật Khẩu, Số Điện Thoại, Số Dư &amp; Mã OTP Kích Hoạt Lên App</p>
+            <div>
+              <span class="t1-live-badge">
+                <span class="t1-pulse-dot"></span>
+                Đặc Quyền Quản Trị Viên (Root Dispatcher Active)
+              </span>
+            </div>
+          </div>
+          <div>
+            <button class="t1-btn t1-btn-secondary" onclick="lockAdmin()" style="font-size: 12px; padding: 7px 14px;">
+              🔒 Khóa Admin (Logout)
+            </button>
+          </div>
+        </div>
+      </header>
+
+    <!-- KHỐI 1: TỔNG QUAN HỆ THỐNG (4 THẺ KPI T1) -->
+    <section class="t1-card t1-card-hover">
+      <div class="t1-card-header">
+        <div class="t1-card-title">
+          <span style="display:inline-block; width:12px; height:12px; background:var(--t1-gold); border-radius:4px;"></span>
+          1. Tổng Quan Chỉ Số Hệ Thống
+        </div>
+        <button class="t1-btn t1-btn-secondary" onclick="loadAdminData()">
+          🔄 Làm mới dữ liệu
+        </button>
+      </div>
+
+      <div class="t1-kpi-grid">
+        <div class="t1-kpi-card">
+          <div class="t1-kpi-title">👥 Tổng Số Tài Khoản MB</div>
+          <div class="t1-kpi-number" id="kpi-total-acc" style="color:#0284c7;">0</div>
+          <div class="t1-kpi-sub">Đã khởi tạo trên hệ thống</div>
+        </div>
+
+        <div class="t1-kpi-card">
+          <div class="t1-kpi-title">⚡ Đang Chạy Trên App MB</div>
+          <div class="t1-kpi-number" id="kpi-active-acc" style="color:#f59e0b;">Chưa có</div>
+          <div class="t1-kpi-sub" id="kpi-active-name">Vui lòng tạo tài khoản mới</div>
+        </div>
+
+        <div class="t1-kpi-card">
+          <div class="t1-kpi-title">💰 Số Dư Tài Khoản Active</div>
+          <div class="t1-kpi-number" id="kpi-active-bal" style="color:#059669;">0 VND</div>
+          <div class="t1-kpi-sub">Tự động đồng bộ song phương</div>
+        </div>
+
+        <div class="t1-kpi-card">
+          <div class="t1-kpi-title">📡 Cụm Máy Chủ Edge</div>
+          <div class="t1-kpi-number" style="color:#6366f1; font-size:18px;">Singapore (sin1)</div>
+          <div class="t1-kpi-sub">Độ trễ thấp &lt; 150ms</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- KHỐI 2: CÁC TÀI KHOẢN ĐÃ TẠO TRÊN HỆ THỐNG (CARD TRỰC QUAN & PRO TABLE) -->
+    <section class="t1-card t1-card-hover">
+      <div class="t1-card-header">
+        <div class="t1-card-title">
+          <span style="display:inline-block; width:12px; height:12px; background:var(--t1-success); border-radius:4px;"></span>
+          2. Danh Sách Tài Khoản Đã Cấp Trên Hệ Thống (<span id="badge-total-acc" style="color:var(--t1-primary);">1</span> tài khoản)
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="t1-btn t1-btn-secondary" onclick="loadAdminData()">
+            🔄 Làm mới
+          </button>
+          <a href="#form-create-section" class="t1-btn t1-btn-primary" style="padding: 6px 14px; font-size: 12px; text-decoration: none;">
+            ➕ Tạo Tài Khoản Mới
+          </a>
+        </div>
+      </div>
+
+      <p style="color: var(--t1-text-muted); font-size: 13.5px; margin-bottom: 16px;">
+        Toàn bộ thông tin tài khoản đã khởi tạo hiển thị đầy đủ bên dưới. Nhấn <strong>"📋 Gửi Khách"</strong> để copy toàn bộ thông tin đăng nhập và link cổng thành viên.
+      </p>
+
+      <!-- LƯỚI THẺ CARD TÀI KHOẢN TRỰC QUAN T1 -->
+      <div id="accounts-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 24px;">
+        <!-- Render động từ Firebase -->
+      </div>
+
+      <!-- BẢNG CHI TIẾT T1 PRO TABLE -->
+      <div style="font-size: 13px; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+        📑 Bảng Danh Sách Chi Tiết:
+      </div>
+      <div class="t1-table-wrap">
+        <table class="t1-table">
+          <thead>
+            <tr>
+              <th style="width: 45px;">STT</th>
+              <th>STK / Tên ĐN</th>
+              <th>Mật Khẩu</th>
+              <th>Số Điện Thoại</th>
+              <th>Chủ Tài Khoản</th>
+              <th>Số Dư Khả Dụng</th>
+              <th>Mã OTP</th>
+              <th style="text-align: center;">Trạng Thái App</th>
+              <th style="text-align: center; width: 220px;">Thao Tác Admin</th>
+            </tr>
+          </thead>
+          <tbody id="accounts-tbody">
+            <tr>
+              <td colspan="9" style="text-align: center; color: var(--t1-text-muted); padding: 24px;">
+                Đang tải danh sách tài khoản từ Firebase...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- KHỐI 3: FORM TẠO MỚI ĐẦY ĐỦ THÔNG TIN TÀI KHOẢN (TK, MK, SĐT, SỐ DƯ, OTP) -->
+    <section id="form-create-section" class="t1-card t1-card-hover">
+      <div class="t1-card-header">
+        <div class="t1-card-title">
+          <span style="display:inline-block; width:12px; height:12px; background:var(--t1-primary); border-radius:4px;"></span>
+          3. Form Admin Tạo Mới &amp; Cấp Thêm Tài Khoản MB Bank (Đầy Đủ TK - MK - SĐT - Số Dư - OTP)
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="t1-btn t1-btn-secondary" onclick="generateRandomAcc()">
+            🎲 Random STK Đẹp
+          </button>
+          <button class="t1-btn t1-btn-secondary" onclick="generateRandomPhone()">
+            📱 Random SĐT
+          </button>
+        </div>
+      </div>
+
+      <p style="color: var(--t1-text-muted); font-size: 13.5px; margin-bottom: 20px;">
+        Nhập đầy đủ thông tin bên dưới để khởi tạo tài khoản khách hàng mới. Khi tạo xong, hệ thống hỗ trợ nút <strong>"📋 Copy Gửi Khách"</strong> để gửi nhanh toàn bộ thông tin đăng nhập.
+      </p>
+
+      <!-- LƯỚI 6 Ô NHẬP LIỆU CHUẨN T1 -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 20px;">
+        
+        <!-- 1. TÀI KHOẢN / STK -->
+        <div class="t1-field">
+          <label class="t1-label">
+            <span>🔑 1. Số Tài Khoản MB (Username)</span>
+            <span style="color:#0284c7; cursor:pointer;" onclick="generateRandomAcc()">Gợi ý STK đẹp</span>
+          </label>
+          <input type="text" id="new-acc" class="t1-input" placeholder="Ví dụ: 8888999988 hoặc 0987654321" />
+        </div>
+
+        <!-- 2. MẬT KHẨU -->
+        <div class="t1-field">
+          <label class="t1-label">
+            <span>🔒 2. Mật Khẩu Đăng Nhập</span>
+            <span style="color:#0284c7; cursor:pointer;" onclick="document.getElementById('new-pass').value='123456'">Đặt mặc định 123456</span>
+          </label>
+          <input type="text" id="new-pass" class="t1-input" value="123456" placeholder="Mật khẩu đăng nhập App MB" />
+        </div>
+
+        <!-- 3. SỐ ĐIỆN THOẠI -->
+        <div class="t1-field">
+          <label class="t1-label">
+            <span>📱 3. Số Điện Thoại (SĐT)</span>
+            <span style="color:#0284c7; cursor:pointer;" onclick="generateRandomPhone()">Gợi ý SĐT</span>
+          </label>
+          <input type="text" id="new-phone" class="t1-input" placeholder="Ví dụ: 0988668899" />
+        </div>
+
+        <!-- 4. HỌ VÀ TÊN CHỦ TÀI KHOẢN -->
+        <div class="t1-field">
+          <label class="t1-label">
+            <span>👤 4. Họ và Tên Khách Hàng (Chủ TK)</span>
+          </label>
+          <input type="text" id="new-name" class="t1-input" placeholder="Ví dụ: NGUYEN VAN HUNG" style="text-transform: uppercase;" />
+        </div>
+
+        <!-- 5. SỐ DƯ BAN ĐẦU -->
+        <div class="t1-field">
+          <label class="t1-label">
+            <span>💰 5. Số Dư Khởi Tạo (VND)</span>
+            <span style="color:#059669; cursor:pointer;" onclick="document.getElementById('new-bal').value='950000000'">Đặt 950tr</span>
+          </label>
+          <input type="number" id="new-bal" class="t1-input" value="950000000" />
+        </div>
+
+        <!-- 6. MÃ OTP -->
+        <div class="t1-field">
+          <label class="t1-label">
+            <span>📲 6. Mã OTP Đăng Nhập / GD</span>
+            <span style="color:#d97706; cursor:pointer;" onclick="document.getElementById('new-otp').value='111111'">Mặc định 111111</span>
+          </label>
+          <input type="text" id="new-otp" class="t1-input" value="111111" placeholder="Ví dụ: 111111" />
+        </div>
+
+      </div>
+
+      <!-- GÓI TÀI KHOẢN -->
+      <div style="margin-bottom: 20px;">
+        <div class="t1-field">
+          <label class="t1-label">⭐ Gói Tài Khoản &amp; Hạn Mức Dịch Vụ</label>
+          <select id="new-tier" class="t1-select">
+            <option value="MB Priority Digital">MB Priority Digital (Hạn mức cao nhất - Mặc định)</option>
+            <option value="MB Private Banking VIP">MB Private Banking VIP (Khách hàng đặc quyền)</option>
+            <option value="MB Diamond Member">MB Diamond Member (Hạng Kim Cương)</option>
+            <option value="MB Platinum Standard">MB Platinum Standard</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 16px; padding: 14px 20px; margin-bottom: 22px;">
+        <label style="display: flex; align-items: center; gap: 10px; font-size: 13.5px; font-weight: 750; color: #0f172a; cursor: pointer; user-select: none;">
+          <input type="checkbox" id="check-set-active" checked style="width: 18px; height: 18px; accent-color: #0284c7; cursor: pointer;" />
+          Đặt làm tài khoản hoạt động trên App MB Bank ngay lập tức
+        </label>
+        <span style="font-size: 12px; color: #64748b;">(App sẽ nhận diện STK, Mật khẩu, Tên và Số dư này khi mở)</span>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end;">
+        <button id="btn-create-acc" class="t1-btn t1-btn-gold" style="padding: 12px 28px; font-size: 14px;">
+          🔥 Tạo &amp; Cấp Toàn Bộ Thông Tin Tài Khoản Mới
+        </button>
+      </div>
+    </section>
+
+    <!-- KHỐI 4: NHẬT KÝ ADMIN (LOG BOX T1) -->
+    <section class="t1-card t1-card-hover">
+      <div class="t1-card-header">
+        <div class="t1-card-title">
+          <span style="display:inline-block; width:12px; height:12px; background:#6366f1; border-radius:4px;"></span>
+          4. Nhật Ký Thao Tác Quản Trị (Admin Audit Log)
+        </div>
+      </div>
+      <pre id="admin-log" class="t1-log-box">// Lắng nghe nhật ký quản trị và các lệnh cấp tài khoản...</pre>
+    </section>
+
+    </div> <!-- Đóng #admin-main-view -->
+
+  </div> <!-- Đóng .t1-container -->
+
+  <script>
+    function getAdminKey() {
+      return sessionStorage.getItem('mb_admin_key') || '';
+    }
+
+    function checkAdminAuth() {
+      const saved = getAdminKey();
+      if (saved) {
+        document.getElementById('admin-lock-view').style.display = 'none';
+        document.getElementById('admin-main-view').style.display = 'block';
+        return true;
+      } else {
+        document.getElementById('admin-lock-view').style.display = 'flex';
+        document.getElementById('admin-main-view').style.display = 'none';
+        return false;
+      }
+    }
+
+    async function unlockAdmin(keyInput) {
+      if (!keyInput) return;
+      const btn = document.getElementById('btn-unlock-admin');
+      const err = document.getElementById('key-error');
+      btn.disabled = true;
+      btn.textContent = 'Đang xác thực...';
+
+      try {
+        const res = await fetch('/api/dispatch', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-admin-key': keyInput
+          },
+          body: JSON.stringify({
+            action: 'verify_key',
+            key: keyInput
+          })
+        });
+        const data = await res.json();
+        if (data && data.success) {
+          sessionStorage.setItem('mb_admin_key', keyInput);
+          err.style.display = 'none';
+          document.getElementById('admin-lock-view').style.display = 'none';
+          document.getElementById('admin-main-view').style.display = 'block';
+          loadAdminData();
+          log('✅ Đã mở khóa phiên quản trị viên thành công.');
+        } else {
+          err.textContent = '❌ Mã khóa bảo mật không chính xác. Vui lòng nhập lại!';
+          err.style.display = 'block';
+          document.getElementById('input-admin-key').focus();
+        }
+      } catch (e) {
+        err.textContent = '❌ Lỗi kết nối: ' + e.message;
+        err.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔓 Mở Khóa Quản Trị Hệ Thống';
+      }
+    }
+
+    function lockAdmin() {
+      sessionStorage.removeItem('mb_admin_key');
+      document.getElementById('input-admin-key').value = '';
+      document.getElementById('key-error').style.display = 'none';
+      checkAdminAuth();
+      log('🔒 Đã khóa lại cổng quản trị Admin.');
+    }
+
+    document.getElementById('admin-key-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const val = document.getElementById('input-admin-key').value.trim();
+      unlockAdmin(val);
+    });
+
+    const logBox = document.getElementById('admin-log');
+
+    function log(msg) {
+      const time = new Date().toLocaleTimeString();
+      if (logBox) logBox.textContent = `[${time}] ${msg}\n` + logBox.textContent;
+    }
+
+    // 🎲 Tạo STK ngẫu nhiên đẹp
+    function generateRandomAcc() {
+      const luckyPrefixes = ['8888', '9999', '6666', '7777', '1900', '0988', '1234'];
+      const prefix = luckyPrefixes[Math.floor(Math.random() * luckyPrefixes.length)];
+      const suffix = Math.floor(100000 + Math.random() * 900000);
+      const generated = `${prefix}${suffix}`.slice(0, 10);
+      document.getElementById('new-acc').value = generated;
+      if (!document.getElementById('new-phone').value) {
+        document.getElementById('new-phone').value = '09' + Math.floor(10000000 + Math.random() * 90000000);
+      }
+      log(`🎲 Đã tạo gợi ý STK đẹp: ${generated}`);
+    }
+
+    // 📱 Tạo SĐT ngẫu nhiên
+    function generateRandomPhone() {
+      const heads = ['098', '097', '096', '086', '090', '093', '089'];
+      const head = heads[Math.floor(Math.random() * heads.length)];
+      const tail = Math.floor(1000000 + Math.random() * 9000000);
+      const phone = `${head}${tail}`.slice(0, 10);
+      document.getElementById('new-phone').value = phone;
+      log(`📱 Đã tạo gợi ý SĐT: ${phone}`);
+    }
+
+    // 📋 Copy thông tin tài khoản hoàn chỉnh để gửi khách
+    function copyClientInfo(num, pass, phone, name, bal, otp) {
+      const text = `🏦 THÔNG TIN TÀI KHOẢN MB BANK:\n` +
+                   `• Link đăng nhập quản lý danh bạ: https://hibank-portal.vercel.app/\n` +
+                   `• Tên đăng nhập / STK: ${num}\n` +
+                   `• Mật khẩu: ${pass}\n` +
+                   `• Số điện thoại: ${phone}\n` +
+                   `• Chủ tài khoản: ${name}\n` +
+                   `• Số dư khả dụng: ${Number(bal).toLocaleString('vi-VN')} VND\n` +
+                   `• Mã OTP xác thực: ${otp}\n` +
+                   `• Ứng dụng: MB Bank (App Sideload / IPA)`;
+      
+      navigator.clipboard.writeText(text).then(() => {
+        alert(`✅ ĐÃ COPY THÀNH CÔNG VÀO BỘ NHỚ TẠM!\n\n${text}`);
+        log(`📋 Đã copy thông tin tài khoản [${num}] ${name} để gửi khách.`);
+      }).catch(err => {
+        prompt("Sao chép thông tin tài khoản bên dưới:", text);
+      });
+    }
+
+    // 1. TẢI DỮ LIỆU TỔNG QUAN TỪ DISPATCH API
+    async function loadAdminData() {
+      if (!checkAdminAuth()) return;
+      try {
+        const res = await fetch(`/api/dispatch?ts=${Date.now()}`, {
+          headers: { 
+            'x-admin-key': getAdminKey(),
+            'Cache-Control': 'no-cache, no-store'
+          }
+        });
+        const data = await res.json();
+
+        if (!data || !data.success) {
+          log('❌ Không thể tải dữ liệu admin.');
+          return;
+        }
+
+        const accounts = data.accounts || {};
+        const entries = Object.entries(accounts);
+
+        const activeAcc = data.active_account ? String(data.active_account) : (entries.length > 0 ? entries[0][0] : null);
+
+        document.getElementById('kpi-total-acc').textContent = entries.length;
+        const badgeAcc = document.getElementById('badge-total-acc');
+        if (badgeAcc) badgeAcc.textContent = entries.length;
+        document.getElementById('kpi-active-acc').textContent = activeAcc || 'Chưa có';
+
+        const currentActive = activeAcc ? accounts[activeAcc] : null;
+        const activeName = currentActive ? (currentActive.customerName || currentActive.accountName || 'CHƯA CÓ').toUpperCase() : (data.customerName || 'Chưa thiết lập');
+        const activeBal = currentActive && typeof currentActive.balance === 'number' ? currentActive.balance : (typeof data.balance === 'number' ? data.balance : 0);
+
+        document.getElementById('kpi-active-name').textContent = activeAcc ? activeName : 'Vui lòng tạo tài khoản mới';
+        document.getElementById('kpi-active-bal').textContent = activeAcc ? (activeBal.toLocaleString('vi-VN') + ' VND') : '0 VND';
+
+        // Render Cards & Bảng tài khoản
+        const cardsGrid = document.getElementById('accounts-cards-grid');
+        const tbody = document.getElementById('accounts-tbody');
+        let htmlTable = '';
+        let htmlCards = '';
+        let index = 1;
+
+        if (entries.length === 0) {
+          if (cardsGrid) {
+            cardsGrid.innerHTML = `
+              <div style="grid-column: 1 / -1; text-align: center; background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 18px; padding: 32px; color: #64748b;">
+                <div style="font-size: 32px; margin-bottom: 8px;">📭</div>
+                <div style="font-size: 15px; font-weight: 800; color: #0f172a; margin-bottom: 4px;">Chưa có tài khoản nào trên hệ thống</div>
+                <div style="font-size: 13px;">Hãy cuộn xuống Form mục 3 bên dưới để khởi tạo tài khoản mới!</div>
+              </div>
+            `;
+          }
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="9" style="text-align: center; color: var(--t1-text-muted); padding: 32px; font-size: 14px;">
+                Chưa có tài khoản nào trên hệ thống. Hãy điền form bên dưới để tạo tài khoản mới!
+              </td>
+            </tr>
+          `;
+          log('Hệ thống hiện chưa có tài khoản nào. Sẵn sàng cấp tài khoản mới.');
+          return;
+        }
+
+        for (const [accNum, item] of entries) {
+          if (!item) continue;
+          const num = item.accountNumber || accNum;
+          const pass = item.password || '123456';
+          const phone = item.phone || item.sdt || num;
+          const name = (item.customerName || item.accountName || 'CHƯA ĐẶT TÊN').toUpperCase();
+          const bal = typeof item.balance === 'number' ? item.balance : 0;
+          const otp = item.otp || '111111';
+          const tier = item.tier || 'MB Priority Digital';
+          const isActive = (num === activeAcc);
+
+          // Card trực quan T1
+          htmlCards += `
+            <div class="t1-kpi-card" style="border: 2px solid ${isActive ? '#f59e0b' : '#e2e8f0'}; background: ${isActive ? 'linear-gradient(180deg, #fffdfa 0%, #fefcf6 100%)' : '#ffffff'}; position: relative; padding: 22px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
+                <div>
+                  <div style="font-size: 10.5px; font-weight: 850; color: #64748b; letter-spacing: 0.5px; text-transform: uppercase;">🔑 SỐ TÀI KHOẢN MB (USERNAME)</div>
+                  <div style="font-size: 22px; font-weight: 900; color: #0284c7; font-family: monospace; letter-spacing: -0.5px;">${num}</div>
+                </div>
+                ${isActive 
+                  ? '<span class="t1-pill t1-pill-active" style="box-shadow: 0 3px 10px rgba(16, 185, 129, 0.25);">⚡ Đang Chạy Trên App</span>'
+                  : '<span class="t1-pill t1-pill-standby">⚪ Dự Phòng</span>'}
+              </div>
+              
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #ffffff; border-radius: 14px; padding: 12px 14px; border: 1.5px solid #f1f5f9; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02); margin-bottom: 14px;">
+                <div>
+                  <div style="font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">🔒 Mật Khẩu</div>
+                  <div style="font-size: 14px; font-weight: 800; color: #d97706; font-family: monospace;">${pass}</div>
+                </div>
+                <div>
+                  <div style="font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">📱 Số Điện Thoại</div>
+                  <div style="font-size: 14px; font-weight: 800; color: #334155; font-family: monospace;">${phone}</div>
+                </div>
+                <div>
+                  <div style="font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">👤 Chủ Tài Khoản</div>
+                  <div style="font-size: 13px; font-weight: 850; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</div>
+                </div>
+                <div>
+                  <div style="font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase;">📲 Mã OTP GD</div>
+                  <div style="font-size: 14px; font-weight: 900; color: #7c3aed; font-family: monospace;">${otp}</div>
+                </div>
+              </div>
+
+              <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1.5px dashed #e2e8f0; padding-bottom: 10px;">
+                <span style="font-size: 12px; font-weight: 750; color: #64748b;">💰 Số Dư Khả Dụng:</span>
+                <span style="font-size: 18px; font-weight: 900; color: #059669; font-family: monospace;">${bal.toLocaleString('vi-VN')} VND</span>
+              </div>
+
+              <div style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap;">
+                <button class="t1-btn t1-btn-primary" style="padding: 7px 12px; font-size: 12px;" onclick="copyClientInfo('${num}', '${pass}', '${phone}', '${name}', '${bal}', '${otp}')" title="Copy gửi khách">
+                  📋 Gửi Khách
+                </button>
+                ${!isActive ? `
+                  <button class="t1-btn t1-btn-gold" style="padding: 7px 12px; font-size: 12px;" onclick="setActiveAccount('${num}')" title="Kích hoạt lên App">
+                    ⚡ Kích Hoạt
+                  </button>
+                ` : ''}
+                <button class="t1-btn t1-btn-danger" style="padding: 7px 12px; font-size: 12px;" onclick="deleteAccount('${num}')" title="Xóa tài khoản này">
+                  🗑️ Xóa
+                </button>
+              </div>
+            </div>
+          `;
+
+          // Hàng trong Pro Table
+          htmlTable += `
+            <tr>
+              <td style="font-weight: 750; color: #64748b;">#${index++}</td>
+              <td style="font-family: monospace; font-weight: 800; color: #0284c7; font-size: 13.5px;">${num}</td>
+              <td style="font-family: monospace; font-weight: 700; color: #d97706;">${pass}</td>
+              <td style="font-family: monospace; color: #475569;">${phone}</td>
+              <td style="font-weight: 800; color: #0f172a;">${name}</td>
+              <td style="font-weight: 750; color: #059669; font-family: monospace;">${bal.toLocaleString('vi-VN')} đ</td>
+              <td style="font-family: monospace; font-weight: 800; color: #7c3aed;">${otp}</td>
+              <td style="text-align: center;">
+                ${isActive 
+                  ? '<span class="t1-pill t1-pill-active">⚡ Đang Chạy Trên App</span>'
+                  : '<span class="t1-pill t1-pill-standby">Dự Phòng</span>'}
+              </td>
+              <td style="text-align: center;">
+                <div style="display: inline-flex; gap: 5px; flex-wrap: wrap; justify-content: center;">
+                  <button class="t1-btn t1-btn-primary" style="padding: 4px 8px; font-size: 11px;" onclick="copyClientInfo('${num}', '${pass}', '${phone}', '${name}', '${bal}', '${otp}')" title="Copy gửi khách">
+                    📋 Gửi Khách
+                  </button>
+                  ${!isActive ? `
+                    <button class="t1-btn t1-btn-gold" style="padding: 4px 8px; font-size: 11px;" onclick="setActiveAccount('${num}')" title="Kích hoạt lên App">
+                      ⚡ Kích Hoạt
+                    </button>
+                  ` : ''}
+                  <button class="t1-btn t1-btn-danger" style="padding: 4px 8px; font-size: 11px;" onclick="deleteAccount('${num}')" title="Xóa">
+                    Xóa
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }
+
+        if (cardsGrid) cardsGrid.innerHTML = htmlCards;
+        tbody.innerHTML = htmlTable;
+        log(`Đã tải danh sách: ${entries.length} tài khoản | Đang chạy trên App: [${activeAcc || 'Chưa có'}]`);
+      } catch (err) {
+        log(`❌ Lỗi tải dữ liệu: ${err.message}`);
+      }
+    }
+
+    // 2. TẠO MỚI TÀI KHOẢN (ĐẦY ĐỦ TK, MK, SĐT, SỐ DƯ, OTP)
+    document.getElementById('btn-create-acc').addEventListener('click', async () => {
+      const num = document.getElementById('new-acc').value.trim().replace(/\D/g, '');
+      const pass = document.getElementById('new-pass').value.trim();
+      const phone = document.getElementById('new-phone').value.trim();
+      const name = document.getElementById('new-name').value.trim().toUpperCase();
+      const bal = Number(document.getElementById('new-bal').value) || 0;
+      const otp = document.getElementById('new-otp').value.trim() || '111111';
+      const tier = document.getElementById('new-tier').value;
+      const setActive = document.getElementById('check-set-active').checked;
+
+      if (!num) {
+        alert('Vui lòng nhập số tài khoản MB mới!');
+        return;
+      }
+      if (!pass) {
+        alert('Vui lòng nhập mật khẩu đăng nhập!');
+        return;
+      }
+      if (!name) {
+        alert('Vui lòng nhập tên khách hàng / chủ tài khoản!');
+        return;
+      }
+
+      const btn = document.getElementById('btn-create-acc');
+      btn.disabled = true;
+      btn.textContent = 'Đang khởi tạo tài khoản...';
+
+      try {
+        const key = getAdminKey();
+        const res = await fetch('/api/dispatch', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-admin-key': key
+          },
+          body: JSON.stringify({
+            action: 'save_account',
+            admin_key: key,
+            accountNumber: num,
+            password: pass,
+            phone: phone || num,
+            sdt: phone || num,
+            otp: otp,
+            accountName: name,
+            customerName: name,
+            balance: bal,
+            tier: tier,
+            set_active: setActive
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          log(`✅ Đã tạo mới tài khoản [${num}] ${name} | MK: ${pass} | SĐT: ${phone || num} | OTP: ${otp} | Số dư: ${bal.toLocaleString()} đ`);
+          
+          copyClientInfo(num, pass, phone || num, name, bal, otp);
+          
+          document.getElementById('new-acc').value = '';
+          document.getElementById('new-name').value = '';
+          document.getElementById('new-phone').value = '';
+          await loadAdminData();
+        } else {
+          alert('Lỗi tạo tài khoản: ' + (data.error || data.message));
+        }
+      } catch (err) {
+        log(`❌ Lỗi: ${err.message}`);
+        alert('Lỗi: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔥 Tạo & Cấp Toàn Bộ Thông Tin Tài Khoản Mới';
+      }
+    });
+
+    // 3. KÍCH HOẠT TÀI KHOẢN LÀM ACTIVE
+    async function setActiveAccount(num) {
+      if (!confirm(`Xác nhận kích hoạt tài khoản [${num}] làm tài khoản chính đang chạy trên App MB?`)) return;
+      try {
+        const key = getAdminKey();
+        const res = await fetch('/api/dispatch', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-admin-key': key
+          },
+          body: JSON.stringify({
+            action: 'set_active',
+            admin_key: key,
+            accountNumber: num
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          log(`⚡ Đã kích hoạt tài khoản [${num}] lên App MB thành công!`);
+          await loadAdminData();
+        }
+      } catch (err) {
+        alert('Lỗi kích hoạt: ' + err.message);
+      }
+    }
+
+    // 4. XÓA TÀI KHOẢN
+    async function deleteAccount(num) {
+      if (!confirm(`Xác nhận xóa tài khoản [${num}] khỏi hệ thống?`)) return;
+      try {
+        const key = getAdminKey();
+        const res = await fetch('/api/dispatch', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-admin-key': key
+          },
+          body: JSON.stringify({
+            action: 'delete_account',
+            admin_key: key,
+            accountNumber: num
+          })
+        });
+        log(`Đã xóa tài khoản [${num}] khỏi Firebase.`);
+        await loadAdminData();
+      } catch (err) {
+        alert('Lỗi xóa: ' + err.message);
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      if (checkAdminAuth()) {
+        loadAdminData();
+      }
+      // Tự động làm mới mỗi 5 giây nếu đang mở khóa
+      setInterval(() => {
+        if (checkAdminAuth()) {
+          loadAdminData();
+        }
+      }, 5000);
+    });
+  </script>
+</body>
+</html>

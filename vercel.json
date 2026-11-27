@@ -1,0 +1,27 @@
+{
+  "cleanUrls": true,
+  "regions": ["sin1"],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,PUT,DELETE,OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization, x-device-id, x-account-number" }
+      ]
+    }
+  ],
+  "rewrites": [
+    { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/member", "destination": "/index.html" },
+    { "source": "/api/v1/mbbank/auth/login", "destination": "/api/auth/login" },
+    { "source": "/api/v1/mbbank/license/(.*)", "destination": "/api/license/ok" },
+    { "source": "/api/v1/mbbank/transactions", "destination": "/api/app/transactions" },
+    { "source": "/api/v1/mbbank/banners", "destination": "/api/app/transactions" },
+    { "source": "/api/v1/security/(.*)", "destination": "/api/license/ok" },
+    { "source": "/api/security/(.*)", "destination": "/api/license/ok" },
+    { "source": "/api/telemetry", "destination": "/api/license/ok" },
+    { "source": "/api/vietqr-bank-mb", "destination": "/api/vietqr-bank-all" },
+    { "source": "/api/vietQr", "destination": "/api/vietqr-bank-all" }
+  ]
+}
