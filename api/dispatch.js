@@ -213,6 +213,59 @@ export default async function handler(req, res) {
     }
   }
 
+  // ACTION: UPDATE FULL ACCOUNT DETAILS
+  if (action === 'update_account') {
+    const rawKey = body.accountNumber || body.account_number || body.stk || body.username || '';
+    const accKey = String(rawKey).trim();
+    if (!accKey) {
+      return res.status(400).json({ success: false, code: 400, message: 'Thiếu số tài khoản / username' });
+    }
+
+    try {
+      const { accountsMap } = await getLiveAccountsMap();
+      const existing = resolveAccount(accountsMap, accKey, null);
+      const folder = existing ? (existing._folder || existing.TK || existing.username) : accKey;
+
+      const name = String(body.customerName || body.accountName || existing?.customerName || folder).trim().toUpperCase();
+      const pass = String(body.password || body.mk || existing?.password || '123456').trim();
+      const phone = String(body.phone || body.sdt || existing?.phone || accKey).trim();
+      const otp = String(body.otp || body.OTP || existing?.otp || '111111').trim();
+      const bal = Number.isFinite(Number(body.balance)) ? Number(body.balance) : (existing?.balance || 0);
+      const tier = body.tier || existing?.tier || 'MB Priority Digital';
+
+      const updateData = {
+        accountName: name,
+        customerName: name,
+        fullName: name,
+        password: pass,
+        MK: pass,
+        phone: phone,
+        sdt: phone,
+        otp: otp,
+        OTP: otp,
+        balance: bal,
+        TIEN: bal,
+        tier: tier,
+        updatedAt: new Date().toISOString()
+      };
+
+      await fetch(`${FIREBASE_BASE}/${folder}.json`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData)
+      });
+
+      return res.status(200).json({
+        success: true,
+        code: 0,
+        message: `Đã cập nhật thông tin tài khoản [${folder}] thành công`,
+        data: { ...existing, ...updateData }
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, code: 500, error: err.message });
+    }
+  }
+
   // ACTION: DELETE ACCOUNT
   if (action === 'delete_account') {
     const rawKey = body.accountNumber || body.account_number || body.stk || body.username || '';

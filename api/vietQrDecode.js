@@ -123,17 +123,34 @@ export default async function handler(req, res) {
   // Tra cứu tên từ Firebase
   let customerName = 'NGUOI NHAN';
   try {
-    const [recRes, directRes] = await Promise.all([
+    const [recRes, rootRes] = await Promise.all([
       fetch(`${FIREBASE_URL}/recipients/${bankCode}_${accountNumber}.json?ts=${Date.now()}`),
-      fetch(`${FIREBASE_BASE}/${accountNumber}.json?ts=${Date.now()}`)
+      fetch(`${FIREBASE_BASE}/.json?ts=${Date.now()}`)
     ]);
     if (recRes.ok) {
       const d = await recRes.json();
       if (d && (d.customerName || d.accountName)) customerName = (d.customerName || d.accountName).trim().toUpperCase();
     }
-    if (customerName === 'NGUOI NHAN' && directRes.ok) {
-      const a = await directRes.json();
-      if (a && (a.customerName || a.accountName || a.TK)) customerName = (a.customerName || a.accountName || a.TK).trim().toUpperCase();
+    if (customerName === 'NGUOI NHAN' && rootRes.ok) {
+      const rootData = await rootRes.json();
+      if (rootData && typeof rootData === 'object') {
+        for (const [k, v] of Object.entries(rootData)) {
+          if (!v || typeof v !== 'object') continue;
+          const stk = String(v.STK || v.accountNumber || v.stk || '').replace(/\D/g, '');
+          const tk = String(v.TK || v.username || '').toLowerCase();
+          if (stk === accountNumber || k.toLowerCase() === accountNumber.toLowerCase() || tk === accountNumber.toLowerCase()) {
+            customerName = String(v.customerName || v.accountName || v.TK || k).trim().toUpperCase();
+            break;
+          }
+          if (v.recipients && typeof v.recipients === 'object') {
+            const rec = v.recipients[`${bankCode}_${accountNumber}`] || v.recipients[accountNumber];
+            if (rec && (rec.customerName || rec.accountName)) {
+              customerName = String(rec.customerName || rec.accountName).trim().toUpperCase();
+              break;
+            }
+          }
+        }
+      }
     }
   } catch(e) {}
 
@@ -165,6 +182,7 @@ export default async function handler(req, res) {
     code: 0,
     status: 'success',
     data: resultData,
-    result: resultData
+    result: resultData,
+    ...resultData
   });
 }

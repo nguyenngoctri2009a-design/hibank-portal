@@ -916,9 +916,6 @@
                 ${isActive 
                   ? '<span class="t1-pill t1-pill-active" style="box-shadow: 0 3px 10px rgba(16, 185, 129, 0.25);">⚡ Đang Chạy Trên App</span>'
                   : '<span class="t1-pill t1-pill-standby">⚪ Dự Phòng</span>'}
-              </div> 
-                  ? '<span class="t1-pill t1-pill-active" style="box-shadow: 0 3px 10px rgba(16, 185, 129, 0.25);">⚡ Đang Chạy Trên App</span>'
-                  : '<span class="t1-pill t1-pill-standby">⚪ Dự Phòng</span>'}
               </div>
               
               <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #ffffff; border-radius: 14px; padding: 12px 14px; border: 1.5px solid #f1f5f9; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02); margin-bottom: 14px;">
@@ -1017,7 +1014,7 @@
 
     // 2. TẠO MỚI TÀI KHOẢN (ĐẦY ĐỦ TK, MK, SĐT, SỐ DƯ, OTP)
     document.getElementById('btn-create-acc').addEventListener('click', async () => {
-      const num = document.getElementById('new-acc').value.trim().replace(/\D/g, '');
+      const rawAcc = document.getElementById('new-acc').value.trim();
       const pass = document.getElementById('new-pass').value.trim();
       const phone = document.getElementById('new-phone').value.trim();
       const name = document.getElementById('new-name').value.trim().toUpperCase();
@@ -1026,8 +1023,8 @@
       const tier = document.getElementById('new-tier').value;
       const setActive = document.getElementById('check-set-active').checked;
 
-      if (!num) {
-        alert('Vui lòng nhập số tài khoản MB mới!');
+      if (!rawAcc) {
+        alert('Vui lòng nhập số tài khoản hoặc username MB mới!');
         return;
       }
       if (!pass) {
@@ -1039,6 +1036,7 @@
         return;
       }
 
+      const num = rawAcc;
       const btn = document.getElementById('btn-create-acc');
       btn.disabled = true;
       btn.textContent = 'Đang khởi tạo tài khoản...';
@@ -1154,25 +1152,45 @@
 
     // 5. MỞ MODAL CHỈNH SỬA TOÀN DIỆN TÀI KHOẢN
     let editingAccNum = null;
-    async function openEditAccountModal(num) {
-      editingAccNum = num;
+    let editingFolderKey = null;
+
+    async function openEditAccountModal(identifier) {
       try {
         const res = await fetch(`/api/dispatch?ts=${Date.now()}`, {
           headers: { 'x-admin-key': getAdminKey() }
         });
         const data = await res.json();
-        const acc = (data.accounts && data.accounts[num]) ? data.accounts[num] : null;
+        const accounts = data.accounts || {};
+
+        let acc = accounts[identifier] || null;
+        let folderKey = identifier;
+
+        if (!acc) {
+          for (const [k, v] of Object.entries(accounts)) {
+            const stk = String(v.accountNumber || v.STK || v.stk || '').trim();
+            const tk = String(v.username || v.TK || '').trim().toLowerCase();
+            if (stk === String(identifier).trim() || tk === String(identifier).trim().toLowerCase() || k.toLowerCase() === String(identifier).trim().toLowerCase()) {
+              acc = v;
+              folderKey = k;
+              break;
+            }
+          }
+        }
+
         if (!acc) {
           alert('Không tìm thấy thông tin tài khoản!');
           return;
         }
 
-        document.getElementById('edit-acc-num').textContent = num;
+        editingAccNum = acc.accountNumber || acc.STK || acc.stk || folderKey;
+        editingFolderKey = folderKey;
+
+        document.getElementById('edit-acc-num').textContent = `${editingAccNum} (${folderKey})`;
         document.getElementById('edit-name').value = acc.customerName || acc.accountName || '';
-        document.getElementById('edit-phone').value = acc.phone || acc.sdt || num;
-        document.getElementById('edit-pass').value = acc.password || '123456';
-        document.getElementById('edit-otp').value = acc.otp || '111111';
-        document.getElementById('edit-bal').value = typeof acc.balance === 'number' ? acc.balance : 0;
+        document.getElementById('edit-phone').value = acc.phone || acc.sdt || editingAccNum;
+        document.getElementById('edit-pass').value = acc.password || acc.MK || '123456';
+        document.getElementById('edit-otp').value = acc.otp || acc.OTP || '111111';
+        document.getElementById('edit-bal').value = typeof acc.balance === 'number' ? acc.balance : (typeof acc.TIEN === 'number' ? acc.TIEN : 0);
         document.getElementById('edit-tier').value = acc.tier || 'MB Priority Digital';
 
         document.getElementById('modal-edit-acc').style.display = 'flex';
@@ -1184,10 +1202,12 @@
     function closeEditModal() {
       document.getElementById('modal-edit-acc').style.display = 'none';
       editingAccNum = null;
+      editingFolderKey = null;
     }
 
     async function submitEditAccount() {
-      if (!editingAccNum) return;
+      const targetKey = editingFolderKey || editingAccNum;
+      if (!targetKey) return;
       const name = document.getElementById('edit-name').value.trim().toUpperCase();
       const phone = document.getElementById('edit-phone').value.trim();
       const pass = document.getElementById('edit-pass').value.trim();
@@ -1211,7 +1231,7 @@
           body: JSON.stringify({
             action: 'update_account',
             admin_key: key,
-            accountNumber: editingAccNum,
+            accountNumber: targetKey,
             customerName: name,
             phone: phone,
             password: pass,
@@ -1222,7 +1242,7 @@
         });
         const data = await res.json();
         if (data.success) {
-          log(`✏️ Đã cập nhật thông tin tài khoản [${editingAccNum}] ${name}`);
+          log(`✏️ Đã cập nhật thông tin tài khoản [${targetKey}] ${name}`);
           closeEditModal();
           await loadAdminData();
         } else {
