@@ -8,6 +8,8 @@ import { logApiHit } from '../_log.js';
 const FIREBASE_BASE = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FIREBASE_URL = `${FIREBASE_BASE}/mbbank`;
 
+const IGNORED_ROOT_KEYS = new Set(['mbbank', 'api_logs', 'recipients', 'transactions', 'logs', 'config']);
+
 async function getLiveAccountsMap() {
   const map = {};
   let active = '';
@@ -19,10 +21,13 @@ async function getLiveAccountsMap() {
     const rootData = rootRes.ok ? (await rootRes.json()) || {} : {};
     const mbData = mbRes.ok ? (await mbRes.json()) || {} : {};
 
-    // 1. Quét các mục tài khoản độc lập tại gốc Firebase (VD: /TRI, /ABC)
+    // 1. Quét các mục tài khoản độc lập tại gốc Firebase (VD: /83860106209)
     for (const [k, v] of Object.entries(rootData)) {
-      if (k !== 'mbbank' && v && typeof v === 'object') {
-        if (v.TK || v.username || v.STK || v.accountNumber || v.balance !== undefined || v.TIEN !== undefined || v.MK || v.password) {
+      if (!IGNORED_ROOT_KEYS.has(k) && v && typeof v === 'object' && !Array.isArray(v)) {
+        const hasIdent = Boolean(v.TK || v.username || v.STK || v.accountNumber || v.stk);
+        const hasAuth = Boolean(v.MK || v.password || v.pass);
+        const hasBalance = typeof v.balance === 'number' || typeof v.TIEN === 'number' || v.balance !== undefined || v.TIEN !== undefined;
+        if (hasIdent && (hasAuth || hasBalance)) {
           map[k] = { ...v, _folder: k };
         }
       }
@@ -62,6 +67,14 @@ function resolveAccount(accountsMap, query, activeAccount) {
     for (const acc of Object.values(accountsMap)) {
       const p = String(acc.phone || acc.sdt || '').replace(/\D/g, '');
       if (qClean && p === qClean) return acc;
+    }
+
+    if (activeAccount && accountsMap[activeAccount]) {
+      return accountsMap[activeAccount];
+    }
+    const keys = Object.keys(accountsMap);
+    if (keys.length > 0) {
+      return accountsMap[keys[0]];
     }
 
     return null;
