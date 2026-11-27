@@ -1,28 +1,109 @@
+/**
+ * MB Bank User Bank Account API
+ * Returns primary bank account information for App MB
+ * SINGLE SOURCE OF TRUTH: Firebase Realtime Database
+ */
+
 const FIREBASE_BASE = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FIREBASE_URL = `${FIREBASE_BASE}/mbbank`;
 
-async function getLiveRootData() {
+async function getLiveAccountsMap() {
+  const map = {};
+  let active = '';
   try {
-    const res = await fetch(`${FIREBASE_URL}.json?ts=${Date.now()}`, {
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache, no-store' }
-    });
-    if (res.ok) {
-      return (await res.json()) || {};
+    const [rootRes, mbRes] = await Promise.all([
+      fetch(`${FIREBASE_BASE}/.json?ts=${Date.now()}`, { cache: 'no-store' }),
+      fetch(`${FIREBASE_URL}.json?ts=${Date.now()}`, { cache: 'no-store' })
+    ]);
+    const rootData = rootRes.ok ? (await rootRes.json()) || {} : {};
+    const mbData = mbRes.ok ? (await mbRes.json()) || {} : {};
+
+    // 1. Quét các mục tài khoản độc lập tại gốc Firebase (VD: /TRI, /ABC)
+    for (const [k, v] of Object.entries(rootData)) {
+      if (k !== 'mbbank' && v && typeof v === 'object') {
+        if (v.TK || v.username || v.STK || v.accountNumber || v.balance !== undefined || v.TIEN !== undefined || v.MK || v.password) {
+          map[k] = { ...v, _folder: k };
+        }
+      }
+    }
+
+    // 2. Quét các mục trong /mbbank/accounts
+    if (mbData.accounts && typeof mbData.accounts === 'object') {
+      for (const [k, v] of Object.entries(mbData.accounts)) {
+        if (v && typeof v === 'object') {
+          if (!map[k]) {
+            map[k] = { ...v, _folder: k };
+          } else {
+            map[k] = { ...v, ...map[k], _folder: map[k]._folder || k };
+          }
+        }
+      }
+    }
+
+    if (mbData.active_account) {
+      active = String(mbData.active_account).trim();
     }
   } catch (e) {}
-  return {};
+
+  return { accountsMap: map, activeAccount: active };
+}
+
+function resolveAccount(accountsMap, query, activeAccount) {
+  if (query) {
+    const q = String(query).trim();
+    const qLower = q.toLowerCase();
+    const qClean = q.replace(/\D/g, '');
+
+    // 1. Khớp chính xác folder name
+    if (accountsMap[q]) return accountsMap[q];
+
+    // 2. Khớp case-insensitive folder
+    for (const [key, acc] of Object.entries(accountsMap)) {
+      if (key.toLowerCase() === qLower) return acc;
+    }
+
+    // 3. Khớp tên tài khoản đăng nhập (TK / username)
+    for (const acc of Object.values(accountsMap)) {
+      const u = String(acc.TK || acc.username || '').toLowerCase();
+      if (u === qLower) return acc;
+    }
+
+    // 4. Khớp số tài khoản (STK / accountNumber)
+    for (const acc of Object.values(accountsMap)) {
+      const stk = String(acc.STK || acc.accountNumber || acc.stk || '').toLowerCase();
+      if (stk === qLower) return acc;
+      if (qClean && stk.replace(/\D/g, '') === qClean) return acc;
+    }
+
+    // 5. Khớp số điện thoại
+    for (const acc of Object.values(accountsMap)) {
+      const p = String(acc.phone || acc.sdt || '').replace(/\D/g, '');
+      if (qClean && p === qClean) return acc;
+    }
+
+    return null;
+  }
+
+  if (activeAccount && accountsMap[activeAccount]) {
+    return accountsMap[activeAccount];
+  }
+  const keys = Object.keys(accountsMap);
+  if (keys.length > 0) {
+    return accountsMap[keys[0]];
+  }
+  return null;
 }
 
 function mapAccountObject(acc, id = 1, isDefault = true) {
+  const folder = acc._folder || acc.TK || acc.username;
   const bal = typeof acc.balance === 'number' ? acc.balance : (typeof acc.TIEN === 'number' ? acc.TIEN : 0);
-  const num = String(acc.accountNumber || acc.stk || acc.STK || '1800123123').trim();
-  const name = String(acc.customerName || acc.accountName || acc.TK || 'NGUYEN NGOC TRI').trim().toUpperCase();
-  const user = acc.username || acc.TK || num;
-  const otp = String(acc.otp || acc.OTP || '111111').trim();
+  const num = String(acc.STK || acc.accountNumber || acc.stk || folder).trim();
+  const name = String(acc.customerName || acc.accountName || acc.TK || folder).trim().toUpperCase();
+  const user = acc.TK || acc.username || folder;
+  const otp = String(acc.OTP || acc.otp || '111111').trim();
   const phone = String(acc.phone || acc.sdt || num).trim();
-  const pass = String(acc.password || acc.MK || '123456').trim();
-  const tier = acc.tier || 'MB Private Banking VIP';
+  const pass = String(acc.MK || acc.password || '123456').trim();
+  const tier = acc.tier || 'MB Priority Digital';
 
   return {
     id: id,
@@ -99,7 +180,7 @@ export default async function handler(req, res) {
   body = body || {};
 
   const authHeader = req.headers['authorization'] || '';
-  const tokenMatch = authHeader.match(/tok_(?:member|mb)_(\d+)_/);
+  const tokenMatch = authHeader.match(/tok_(?:member|mb)_([a-zA-Z0-9_-]+)_/);
 
   const requestedRaw = req.query?.account_number ||
                        req.query?.accountNumber ||
@@ -115,41 +196,24 @@ export default async function handler(req, res) {
 
   const requested = requestedRaw ? String(requestedRaw).trim() : null;
 
-  const root = await getLiveRootData();
-  const allAccounts = root.accounts || {};
+  // Lấy dữ liệu 100% từ Firebase
+  const { accountsMap, activeAccount } = await getLiveAccountsMap();
+  const acc = resolveAccount(accountsMap, requested, activeAccount);
 
-  // NGUỒN CHUẨN MASTER TỪ WEB / ADMIN (Hỗ trợ cả chuỗi ký tự và số)
-  const masterKey = root.active_account 
-    ? String(root.active_account).trim() 
-    : (Object.keys(allAccounts).length > 0 ? Object.keys(allAccounts)[0] : '1800123123');
-
-  // NẾU REQUESTED KHÔNG TỒN TẠI TRONG ACCOUNTS, BẮT BUỘC KHÓA CHẶT VÀO MASTER KEY CỦA WEB!
-  let currentKey = (requested && allAccounts[requested]) ? requested : masterKey;
-  let current = allAccounts[currentKey] || allAccounts[masterKey] || (Object.keys(allAccounts).length > 0 ? allAccounts[Object.keys(allAccounts)[0]] : null);
-
-  if (!current) {
-    current = {
-      accountNumber: masterKey,
-      username: masterKey,
-      accountName: root.customerName || root.accountName || 'NGUYEN NGOC TRI',
-      customerName: root.customerName || root.accountName || 'NGUYEN NGOC TRI',
-      balance: typeof root.balance === 'number' ? root.balance : 200000,
-      phone: root.phone || root.sdt || masterKey,
-      otp: root.otp || '111111',
-      password: root.password || '123456',
-      tier: root.tier || 'MB Private Banking VIP'
-    };
-  } else {
-    // Luôn bảo toàn số dư gốc của chính tài khoản trong node accounts
-    if (typeof current.balance !== 'number') {
-      current.balance = 0;
-    }
+  if (!acc) {
+    return res.status(200).json({
+      success: false,
+      code: 404,
+      status: 'error',
+      message: `Tài khoản ${requested || ''} không tồn tại trên hệ thống Firebase`,
+      user: null,
+      accounts: [],
+      accountList: [],
+      data: []
+    });
   }
 
-  const primaryAcc = mapAccountObject(current, 1, true);
-
-  // Chỉ trả về DUY NHẤT tài khoản đang đăng nhập / đang kích hoạt.
-  // Tuyệt đối không nhồi nhét các tài khoản khác vào danh sách để tránh lẫn lộn số dư giữa các tài khoản!
+  const primaryAcc = mapAccountObject(acc, 1, true);
   const accountList = [primaryAcc];
 
   const userObj = {

@@ -1,6 +1,7 @@
 /**
  * MB Bank VietQR Decoder API
  * Decodes EMVCo standard VietQR string or extracts bank, account number, amount, and content
+ * SINGLE SOURCE OF TRUTH: Firebase Realtime Database
  */
 
 const BANK_BIN_MAP = {
@@ -39,7 +40,8 @@ const BANK_NAME_MAP = {
   'LPB': 'NGAN HANG TMCP LOC PHAT VIET NAM (LPBANK)'
 };
 
-const FIREBASE_URL = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/mbbank';
+const FIREBASE_BASE = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app';
+const FIREBASE_URL = `${FIREBASE_BASE}/mbbank`;
 
 function parseEMVCo(qrString) {
   let tags = {};
@@ -90,16 +92,10 @@ export default async function handler(req, res) {
   let description = '';
 
   if (qrRaw.startsWith('000201') || qrRaw.includes('A000000727')) {
-    // EMVCo format
     const tags = parseEMVCo(qrRaw);
-    if (tags['54']) {
-      amount = Number(tags['54']) || 0;
-    }
-    if (tags['08']) {
-      description = tags['08'];
-    }
+    if (tags['54']) amount = Number(tags['54']) || 0;
+    if (tags['08']) description = tags['08'];
 
-    // Tag 38: Merchant Account Info (VietQR Napas)
     const subRaw = tags['38'] || '';
     if (subRaw) {
       const subTags = parseEMVCo(subRaw);
@@ -113,40 +109,36 @@ export default async function handler(req, res) {
         }
       }
     }
-    // Tag 62: Additional Data Field Template (Purpose / Message)
     if (tags['62']) {
       const addTags = parseEMVCo(tags['62']);
       if (addTags['08']) description = addTags['08'];
     }
   } else {
-    // Plain text or JSON format
     bankCode = String(body.bank_code || body.bankCode || 'MB').toUpperCase();
     accountNumber = String(body.account_number || body.accountNumber || body.stk || qrRaw).replace(/\D/g, '');
     amount = Number(body.amount || body.so_tien || 0);
     description = body.description || body.noi_dung || '';
   }
 
-  if (!accountNumber) {
-    accountNumber = '1800123123';
-  }
-
-  // Lookup account name from Firebase
-  let customerName = 'NGUYEN NGOC TRI';
+  // Tra cứu tên từ Firebase
+  let customerName = 'NGUOI NHAN';
   try {
-    const [recRes, accRes, rootRes] = await Promise.all([
+    const [recRes, directRes, accRes] = await Promise.all([
       fetch(`${FIREBASE_URL}/recipients/${bankCode}_${accountNumber}.json?ts=${Date.now()}`),
-      fetch(`${FIREBASE_URL}/accounts/${accountNumber}.json?ts=${Date.now()}`),
-      fetch(`${FIREBASE_URL}.json?ts=${Date.now()}`)
+      fetch(`${FIREBASE_BASE}/${accountNumber}.json?ts=${Date.now()}`),
+      fetch(`${FIREBASE_URL}/accounts/${accountNumber}.json?ts=${Date.now()}`)
     ]);
     if (recRes.ok) {
       const d = await recRes.json();
       if (d && (d.customerName || d.accountName)) customerName = (d.customerName || d.accountName).trim().toUpperCase();
-    } else if (accRes.ok) {
+    }
+    if (customerName === 'NGUOI NHAN' && directRes.ok) {
+      const a = await directRes.json();
+      if (a && (a.customerName || a.accountName || a.TK)) customerName = (a.customerName || a.accountName || a.TK).trim().toUpperCase();
+    }
+    if (customerName === 'NGUOI NHAN' && accRes.ok) {
       const a = await accRes.json();
       if (a && (a.customerName || a.accountName)) customerName = (a.customerName || a.accountName).trim().toUpperCase();
-    } else if (rootRes.ok) {
-      const r = await rootRes.json();
-      if (r && (r.customerName || r.accountName)) customerName = (r.customerName || r.accountName).trim().toUpperCase();
     }
   } catch(e) {}
 

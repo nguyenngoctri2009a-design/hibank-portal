@@ -1,19 +1,110 @@
+/**
+ * MB Bank Transactions API
+ * SINGLE SOURCE OF TRUTH: Firebase Realtime Database
+ * Returns 100% live transactions and balance for the requested account.
+ * If the account does not exist in Firebase, returns 404 (does NOT fall back to dummy/other accounts).
+ */
+
 const FIREBASE_BASE = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FIREBASE_URL = `${FIREBASE_BASE}/mbbank`;
 
-async function getLiveRootData() {
+async function getLiveAccountsMap() {
+  const map = {};
+  let active = '';
   try {
-    const res = await fetch(`${FIREBASE_URL}.json?ts=${Date.now()}`, { cache: 'no-store' });
-    if (res.ok) {
-      return (await res.json()) || {};
+    const [rootRes, mbRes] = await Promise.all([
+      fetch(`${FIREBASE_BASE}/.json?ts=${Date.now()}`, { cache: 'no-store' }),
+      fetch(`${FIREBASE_URL}.json?ts=${Date.now()}`, { cache: 'no-store' })
+    ]);
+    const rootData = rootRes.ok ? (await rootRes.json()) || {} : {};
+    const mbData = mbRes.ok ? (await mbRes.json()) || {} : {};
+
+    // 1. Quét các mục tài khoản độc lập tại gốc Firebase (VD: /TRI, /ABC)
+    for (const [k, v] of Object.entries(rootData)) {
+      if (k !== 'mbbank' && v && typeof v === 'object') {
+        if (v.TK || v.username || v.STK || v.accountNumber || v.balance !== undefined || v.TIEN !== undefined || v.MK || v.password) {
+          map[k] = { ...v, _folder: k };
+        }
+      }
+    }
+
+    // 2. Quét các mục trong /mbbank/accounts
+    if (mbData.accounts && typeof mbData.accounts === 'object') {
+      for (const [k, v] of Object.entries(mbData.accounts)) {
+        if (v && typeof v === 'object') {
+          if (!map[k]) {
+            map[k] = { ...v, _folder: k };
+          } else {
+            map[k] = { ...v, ...map[k], _folder: map[k]._folder || k };
+          }
+        }
+      }
+    }
+
+    if (mbData.active_account) {
+      active = String(mbData.active_account).trim();
     }
   } catch (e) {}
-  return {};
+
+  return { accountsMap: map, activeAccount: active };
 }
 
-async function getStoredTransactions(accNum, name, bal, createdAt) {
+function resolveAccount(accountsMap, query, activeAccount) {
+  if (query) {
+    const q = String(query).trim();
+    const qLower = q.toLowerCase();
+    const qClean = q.replace(/\D/g, '');
+
+    // 1. Khớp chính xác key mục (Folder name, ví dụ: 'TRI')
+    if (accountsMap[q]) return accountsMap[q];
+
+    // 2. Khớp case-insensitive folder
+    for (const [key, acc] of Object.entries(accountsMap)) {
+      if (key.toLowerCase() === qLower) return acc;
+    }
+
+    // 3. Khớp tên tài khoản đăng nhập (TK / username)
+    for (const acc of Object.values(accountsMap)) {
+      const u = String(acc.TK || acc.username || '').toLowerCase();
+      if (u === qLower) return acc;
+    }
+
+    // 4. Khớp số tài khoản (STK / accountNumber)
+    for (const acc of Object.values(accountsMap)) {
+      const stk = String(acc.STK || acc.accountNumber || acc.stk || '').toLowerCase();
+      if (stk === qLower) return acc;
+      if (qClean && stk.replace(/\D/g, '') === qClean) return acc;
+    }
+
+    // 5. Khớp số điện thoại (SĐT / phone)
+    for (const acc of Object.values(accountsMap)) {
+      const p = String(acc.phone || acc.sdt || '').replace(/\D/g, '');
+      if (qClean && p === qClean) return acc;
+    }
+
+    // NẾU CÓ CHỈ ĐỊNH TÀI KHOẢN NHƯNG KHÔNG TỒN TẠI TRÊN FIREBASE: TRẢ VỀ NULL
+    return null;
+  }
+
+  // NẾU KHÔNG TRUYỀN TÀI KHOẢN: LẤY TÀI KHOẢN ĐANG ACTIVE TRÊN FIREBASE
+  if (activeAccount && accountsMap[activeAccount]) {
+    return accountsMap[activeAccount];
+  }
+  const keys = Object.keys(accountsMap);
+  if (keys.length > 0) {
+    return accountsMap[keys[0]];
+  }
+  return null;
+}
+
+async function getStoredTransactions(acc, folder) {
+  const accNum = acc.STK || acc.accountNumber || acc.stk || folder;
+  const name = String(acc.customerName || acc.accountName || acc.TK || folder).trim().toUpperCase();
+  const bal = typeof acc.balance === 'number' ? acc.balance : (typeof acc.TIEN === 'number' ? acc.TIEN : 0);
+  const createdAt = acc.updatedAt || new Date().toISOString();
+
   const initialTransaction = {
-    id: `TXN-INIT-${accNum}`,
+    id: `TXN-INIT-${folder}`,
     accountNumber: accNum,
     account_number: accNum,
     stk: accNum,
@@ -43,16 +134,14 @@ async function getStoredTransactions(accNum, name, bal, createdAt) {
   };
 
   try {
-    const [accTxRes, directTxRes] = await Promise.all([
-      fetch(`${FIREBASE_URL}/accounts/${accNum}/transactions.json?ts=${Date.now()}`, { cache: 'no-store' }),
-      fetch(`${FIREBASE_BASE}/${accNum}/transactions.json?ts=${Date.now()}`, { cache: 'no-store' })
+    const [directTxRes, mbTxRes] = await Promise.all([
+      fetch(`${FIREBASE_BASE}/${folder}/transactions.json?ts=${Date.now()}`, { cache: 'no-store' }),
+      fetch(`${FIREBASE_URL}/accounts/${folder}/transactions.json?ts=${Date.now()}`, { cache: 'no-store' })
     ]);
-    let data = null;
-    if (directTxRes.ok) {
-      data = await directTxRes.json();
-    }
-    if (!data && accTxRes.ok) {
-      data = await accTxRes.json();
+
+    let data = directTxRes.ok ? await directTxRes.json() : null;
+    if (!data && mbTxRes.ok) {
+      data = await mbTxRes.json();
     }
 
     if (data && typeof data === 'object') {
@@ -85,11 +174,10 @@ async function getStoredTransactions(accNum, name, bal, createdAt) {
           noidung: t.description || t.noi_dung || `${name} chuyen tien`,
           remark: t.description || t.noi_dung || `${name} chuyen tien`,
           created_at: t.createdAt || t.created_at || new Date().toISOString(),
-          createdAt: t.createdAt || t.created_at || new Date().toISOString(),
+          createdAt: t.createdAt || t.created_at || new Date().toISOString()
         }));
 
       if (customList.length > 0) {
-        // Trả về đúng 100% tất cả giao dịch có trong Firebase
         return customList.reverse();
       }
     }
@@ -110,49 +198,40 @@ export default async function handler(req, res) {
     return res.status(204).end();
   }
 
-  const root = await getLiveRootData();
-  const allAccounts = root.accounts || {};
+  const requestedRaw = req.query?.account_number || 
+                       req.query?.accountNumber || 
+                       req.query?.stk || 
+                       req.query?.username || 
+                       req.headers['x-account-number'];
 
-  const requestedRaw = req.query?.account_number || req.query?.accountNumber || req.query?.stk || req.headers['x-account-number'];
   const requested = requestedRaw ? String(requestedRaw).trim() : null;
 
-  // Tự động nhận diện mục gốc tài khoản nếu nằm tại gốc Firebase (Ví dụ: /TRI)
-  if (requested && !allAccounts[requested]) {
-    try {
-      const dirRes = await fetch(`${FIREBASE_BASE}/${requested}.json?ts=${Date.now()}`);
-      if (dirRes.ok) {
-        const dirData = await dirRes.json();
-        if (dirData && (dirData.balance !== undefined || dirData.TIEN !== undefined)) {
-          allAccounts[requested] = {
-            ...dirData,
-            balance: typeof dirData.balance === 'number' ? dirData.balance : (typeof dirData.TIEN === 'number' ? dirData.TIEN : 0),
-            customerName: dirData.customerName || dirData.accountName || dirData.TK || requested,
-            accountNumber: dirData.accountNumber || dirData.stk || dirData.STK || requested,
-            updatedAt: dirData.updatedAt || new Date().toISOString()
-          };
-        }
-      }
-    } catch (e) {}
+  // Lấy dữ liệu 100% từ Firebase
+  const { accountsMap, activeAccount } = await getLiveAccountsMap();
+  const acc = resolveAccount(accountsMap, requested, activeAccount);
+
+  // Nếu tài khoản được yêu cầu nhưng không tồn tại trên Firebase: báo lỗi rõ ràng
+  if (!acc) {
+    return res.status(200).json({
+      success: false,
+      code: 404,
+      status: 'error',
+      message: `Tài khoản ${requested || ''} không tồn tại trên hệ thống Firebase`,
+      accountNumber: requested || '',
+      account_number: requested || '',
+      balance: 0,
+      transactions: [],
+      data: [],
+      total: 0
+    });
   }
 
-  // NGUỒN CHUẨN TỪ WEB (Hỗ trợ cả chuỗi ký tự và số)
-  const masterKey = root.active_account 
-    ? String(root.active_account).trim() 
-    : (Object.keys(allAccounts).length > 0 ? Object.keys(allAccounts)[0] : 'TRI');
+  const folder = acc._folder || acc.TK || acc.username;
+  const accNum = acc.STK || acc.accountNumber || acc.stk || folder;
+  const name = String(acc.customerName || acc.accountName || acc.TK || folder).trim().toUpperCase();
+  const bal = typeof acc.balance === 'number' ? acc.balance : (typeof acc.TIEN === 'number' ? acc.TIEN : 0);
 
-  // NẾU TÀI KHOẢN YÊU CẦU KHÔNG CÓ TRÊN HỆ THỐNG, LUÔN DÙNG MASTER TÀI KHOẢN WEB!
-  const accNum = (requested && allAccounts[requested]) ? requested : masterKey;
-  let accData = allAccounts[accNum] || allAccounts[masterKey] || {};
-
-  if (!accData.balance && accData.TIEN !== undefined) {
-    accData.balance = Number(accData.TIEN);
-  }
-
-  const name = String(accData.customerName || accData.accountName || accData.TK || 'TRI').trim().toUpperCase();
-  const bal = typeof accData.balance === 'number' ? accData.balance : (typeof accData.TIEN === 'number' ? accData.TIEN : 0);
-  const createdAt = accData.updatedAt || new Date().toISOString();
-
-  const list = await getStoredTransactions(accNum, name, bal, createdAt);
+  const list = await getStoredTransactions(acc, folder);
 
   return res.status(200).json({
     success: true,

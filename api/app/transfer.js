@@ -1,5 +1,93 @@
+/**
+ * MB Bank Transfer API
+ * Deducts balance directly from the account folder on Firebase
+ * Logs transaction directly to that account's /transactions on Firebase
+ */
+
 const FIREBASE_BASE = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FIREBASE_URL = `${FIREBASE_BASE}/mbbank`;
+
+async function getLiveAccountsMap() {
+  const map = {};
+  let active = '';
+  try {
+    const [rootRes, mbRes] = await Promise.all([
+      fetch(`${FIREBASE_BASE}/.json?ts=${Date.now()}`, { cache: 'no-store' }),
+      fetch(`${FIREBASE_URL}.json?ts=${Date.now()}`, { cache: 'no-store' })
+    ]);
+    const rootData = rootRes.ok ? (await rootRes.json()) || {} : {};
+    const mbData = mbRes.ok ? (await mbRes.json()) || {} : {};
+
+    // 1. Quét các mục tài khoản độc lập tại gốc Firebase (VD: /TRI, /ABC)
+    for (const [k, v] of Object.entries(rootData)) {
+      if (k !== 'mbbank' && v && typeof v === 'object') {
+        if (v.TK || v.username || v.STK || v.accountNumber || v.balance !== undefined || v.TIEN !== undefined || v.MK || v.password) {
+          map[k] = { ...v, _folder: k };
+        }
+      }
+    }
+
+    // 2. Quét các mục trong /mbbank/accounts
+    if (mbData.accounts && typeof mbData.accounts === 'object') {
+      for (const [k, v] of Object.entries(mbData.accounts)) {
+        if (v && typeof v === 'object') {
+          if (!map[k]) {
+            map[k] = { ...v, _folder: k };
+          } else {
+            map[k] = { ...v, ...map[k], _folder: map[k]._folder || k };
+          }
+        }
+      }
+    }
+
+    if (mbData.active_account) {
+      active = String(mbData.active_account).trim();
+    }
+  } catch (e) {}
+
+  return { accountsMap: map, activeAccount: active };
+}
+
+function resolveAccount(accountsMap, query, activeAccount) {
+  if (query) {
+    const q = String(query).trim();
+    const qLower = q.toLowerCase();
+    const qClean = q.replace(/\D/g, '');
+
+    if (accountsMap[q]) return accountsMap[q];
+
+    for (const [key, acc] of Object.entries(accountsMap)) {
+      if (key.toLowerCase() === qLower) return acc;
+    }
+
+    for (const acc of Object.values(accountsMap)) {
+      const u = String(acc.TK || acc.username || '').toLowerCase();
+      if (u === qLower) return acc;
+    }
+
+    for (const acc of Object.values(accountsMap)) {
+      const stk = String(acc.STK || acc.accountNumber || acc.stk || '').toLowerCase();
+      if (stk === qLower) return acc;
+      if (qClean && stk.replace(/\D/g, '') === qClean) return acc;
+    }
+
+    for (const acc of Object.values(accountsMap)) {
+      const p = String(acc.phone || acc.sdt || '').replace(/\D/g, '');
+      if (qClean && p === qClean) return acc;
+    }
+
+    return null;
+  }
+
+  if (activeAccount && accountsMap[activeAccount]) {
+    return accountsMap[activeAccount];
+  }
+  const keys = Object.keys(accountsMap);
+  if (keys.length > 0) {
+    return accountsMap[keys[0]];
+  }
+  return null;
+}
 
 async function resolveRecipient(targetAcc, customName, bankCode = 'MB') {
   if (customName && typeof customName === 'string' && customName.trim().length > 1) {
@@ -19,12 +107,6 @@ async function resolveRecipient(targetAcc, customName, bankCode = 'MB') {
     const rRes = await fetch(`${FIREBASE_URL}/recipients/${clean}.json`);
     if (rRes.ok) {
       const d = await rRes.json();
-      if (d && (d.customerName || d.accountName)) return (d.customerName || d.accountName).trim().toUpperCase();
-    }
-
-    const aRes = await fetch(`${FIREBASE_URL}/accounts/${clean}.json`);
-    if (aRes.ok) {
-      const d = await aRes.json();
       if (d && (d.customerName || d.accountName)) return (d.customerName || d.accountName).trim().toUpperCase();
     }
   } catch (e) {}
@@ -50,35 +132,36 @@ export default async function handler(req, res) {
   }
   body = body || {};
 
-  // 1. Fetch live active account and all accounts from Firebase
-  let activeAccKey = '1800123123';
-  let allAccounts = {};
-  try {
-    const [actRes, accsRes] = await Promise.all([
-      fetch(`${FIREBASE_URL}/active_account.json?ts=${Date.now()}`, { cache: 'no-store' }),
-      fetch(`${FIREBASE_URL}/accounts.json?ts=${Date.now()}`, { cache: 'no-store' })
-    ]);
-    if (actRes.ok) {
-      const val = await actRes.json();
-      if (val) activeAccKey = String(val).trim();
-    }
-    if (accsRes.ok) {
-      allAccounts = (await accsRes.json()) || {};
-    }
-  } catch (e) {}
+  // 1. Tìm tài khoản người gửi trên Firebase
+  const { accountsMap, activeAccount } = await getLiveAccountsMap();
+  const rawSender = String(
+    body.sender_account || 
+    body.senderAccount || 
+    body.from_account || 
+    body.fromAccount || 
+    body.account_number || 
+    req.headers['x-account-number'] || 
+    ''
+  ).trim();
 
-  // Xác định tài khoản người chuyển:
-  // Nếu client gửi sender_account / from_account và có trong allAccounts thì dùng, ngược lại dùng activeAccKey
-  const rawSender = String(body.sender_account || body.senderAccount || body.from_account || body.fromAccount || '').trim();
-  const senderKey = (rawSender && allAccounts[rawSender]) ? rawSender : activeAccKey;
+  const senderAcc = resolveAccount(accountsMap, rawSender, activeAccount);
 
-  const senderData = allAccounts[senderKey] || allAccounts[activeAccKey] || {};
-  let senderBal = typeof senderData.balance === 'number' ? senderData.balance : 0;
-  const senderName = String(senderData.customerName || senderData.accountName || 'NGUYEN NGOC TRI').trim().toUpperCase();
-  const expectedPin = String(senderData.otp || senderData.pin || '111111').trim();
-  const senderNum = senderData.accountNumber || senderData.stk || senderKey;
+  if (!senderAcc) {
+    return res.status(200).json({
+      success: false,
+      status: 'error',
+      code: 404,
+      message: 'Tài khoản người gửi không tồn tại trên hệ thống Firebase'
+    });
+  }
 
-  // 2. Kiểm tra mã PIN / OTP người dùng nhập
+  const folder = senderAcc._folder || senderAcc.TK || senderAcc.username;
+  const senderBal = typeof senderAcc.balance === 'number' ? senderAcc.balance : (typeof senderAcc.TIEN === 'number' ? senderAcc.TIEN : 0);
+  const senderName = String(senderAcc.customerName || senderAcc.accountName || senderAcc.TK || folder).trim().toUpperCase();
+  const senderNum = senderAcc.STK || senderAcc.accountNumber || senderAcc.stk || folder;
+  const expectedPin = String(senderAcc.OTP || senderAcc.otp || senderAcc.pin || '111111').trim();
+
+  // 2. Kiểm tra mã PIN / Digital OTP
   const b = (body && typeof body.data === 'object') ? body.data : body;
   const rawInputPin = String(
     body.pin_code ||
@@ -134,10 +217,8 @@ export default async function handler(req, res) {
     });
   }
 
-  // TRỪ THẲNG VÀO TIỀN GỐC CỦA CHÍNH MỤC TÀI KHOẢN ĐÓ
+  // 3. TRỪ TRỰC TIẾP VÀO SỐ DƯ GỐC CỦA MỤC TÀI KHOẢN TRÊN FIREBASE
   const newBal = Math.max(0, senderBal - amount);
-  const accountFolderName = String(senderData.username || senderData.TK || senderKey).trim();
-
   const patchData = {
     balance: newBal,
     TIEN: newBal,
@@ -146,12 +227,12 @@ export default async function handler(req, res) {
 
   try {
     await Promise.all([
-      fetch(`${FIREBASE_BASE}/${accountFolderName}.json`, {
+      fetch(`${FIREBASE_BASE}/${folder}.json`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patchData)
       }).catch(() => {}),
-      fetch(`${FIREBASE_URL}/accounts/${senderKey}.json`, {
+      fetch(`${FIREBASE_URL}/accounts/${folder}.json`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patchData)
@@ -180,15 +261,15 @@ export default async function handler(req, res) {
     createdAt: new Date().toISOString()
   };
 
-  // GHI THÔNG BÁO CHUYỂN TIỀN DUY NHẤT VÀO MỤC TÀI KHOẢN ĐÓ
+  // 4. LƯU BÁO CÁO GIAO DỊCH VÀO MỤC /transactions TRÊN FIREBASE
   try {
     await Promise.all([
-      fetch(`${FIREBASE_BASE}/${accountFolderName}/transactions.json`, {
+      fetch(`${FIREBASE_BASE}/${folder}/transactions.json`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(txnRecord)
       }).catch(() => {}),
-      fetch(`${FIREBASE_URL}/accounts/${senderKey}/transactions.json`, {
+      fetch(`${FIREBASE_URL}/accounts/${folder}/transactions.json`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(txnRecord)

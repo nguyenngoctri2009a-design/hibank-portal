@@ -1,31 +1,106 @@
+/**
+ * MB Bank Authentication API
+ * SINGLE SOURCE OF TRUTH: Firebase Realtime Database
+ */
+
 const FIREBASE_BASE = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FIREBASE_URL = `${FIREBASE_BASE}/mbbank`;
 
-async function getLiveAccountsData() {
+async function getLiveAccountsMap() {
+  const map = {};
+  let active = '';
   try {
-    const [actRes, accsRes] = await Promise.all([
-      fetch(`${FIREBASE_URL}/active_account.json?ts=${Date.now()}`, { cache: 'no-store' }),
-      fetch(`${FIREBASE_URL}/accounts.json?ts=${Date.now()}`, { cache: 'no-store' })
+    const [rootRes, mbRes] = await Promise.all([
+      fetch(`${FIREBASE_BASE}/.json?ts=${Date.now()}`, { cache: 'no-store' }),
+      fetch(`${FIREBASE_URL}.json?ts=${Date.now()}`, { cache: 'no-store' })
     ]);
-    const activeKey = actRes.ok ? String((await actRes.json()) || '').trim() : '';
-    const accounts = accsRes.ok ? (await accsRes.json()) || {} : {};
-    return { activeKey, accounts };
-  } catch(e) {}
-  return { activeKey: '', accounts: {} };
+    const rootData = rootRes.ok ? (await rootRes.json()) || {} : {};
+    const mbData = mbRes.ok ? (await mbRes.json()) || {} : {};
+
+    // 1. Quét các mục tài khoản độc lập tại gốc Firebase (VD: /TRI, /ABC)
+    for (const [k, v] of Object.entries(rootData)) {
+      if (k !== 'mbbank' && v && typeof v === 'object') {
+        if (v.TK || v.username || v.STK || v.accountNumber || v.balance !== undefined || v.TIEN !== undefined || v.MK || v.password) {
+          map[k] = { ...v, _folder: k };
+        }
+      }
+    }
+
+    // 2. Quét các mục trong /mbbank/accounts
+    if (mbData.accounts && typeof mbData.accounts === 'object') {
+      for (const [k, v] of Object.entries(mbData.accounts)) {
+        if (v && typeof v === 'object') {
+          if (!map[k]) {
+            map[k] = { ...v, _folder: k };
+          } else {
+            map[k] = { ...v, ...map[k], _folder: map[k]._folder || k };
+          }
+        }
+      }
+    }
+
+    if (mbData.active_account) {
+      active = String(mbData.active_account).trim();
+    }
+  } catch (e) {}
+
+  return { accountsMap: map, activeAccount: active };
+}
+
+function resolveAccount(accountsMap, query, activeAccount) {
+  if (query) {
+    const q = String(query).trim();
+    const qLower = q.toLowerCase();
+    const qClean = q.replace(/\D/g, '');
+
+    if (accountsMap[q]) return accountsMap[q];
+
+    for (const [key, acc] of Object.entries(accountsMap)) {
+      if (key.toLowerCase() === qLower) return acc;
+    }
+
+    for (const acc of Object.values(accountsMap)) {
+      const u = String(acc.TK || acc.username || '').toLowerCase();
+      if (u === qLower) return acc;
+    }
+
+    for (const acc of Object.values(accountsMap)) {
+      const stk = String(acc.STK || acc.accountNumber || acc.stk || '').toLowerCase();
+      if (stk === qLower) return acc;
+      if (qClean && stk.replace(/\D/g, '') === qClean) return acc;
+    }
+
+    for (const acc of Object.values(accountsMap)) {
+      const p = String(acc.phone || acc.sdt || '').replace(/\D/g, '');
+      if (qClean && p === qClean) return acc;
+    }
+
+    return null;
+  }
+
+  if (activeAccount && accountsMap[activeAccount]) {
+    return accountsMap[activeAccount];
+  }
+  const keys = Object.keys(accountsMap);
+  if (keys.length > 0) {
+    return accountsMap[keys[0]];
+  }
+  return null;
 }
 
 function buildAccountResponse(acc, token) {
-  const num = String(acc.stk || acc.accountNumber || acc.STK || '1800123123').trim();
-  const name = String(acc.customerName || acc.accountName || acc.username || acc.TK || 'NGUYEN NGOC TRI').trim().toUpperCase();
+  const folder = acc._folder || acc.TK || acc.username;
+  const num = String(acc.STK || acc.accountNumber || acc.stk || folder).trim();
+  const name = String(acc.customerName || acc.accountName || acc.TK || folder).trim().toUpperCase();
   const bal = typeof acc.balance === 'number' ? acc.balance : (typeof acc.TIEN === 'number' ? acc.TIEN : 0);
-  const otp = String(acc.otp || acc.OTP || acc.pin || '111111').trim();
+  const otp = String(acc.OTP || acc.otp || '111111').trim();
   const phone = String(acc.phone || acc.sdt || num).trim();
-  const pass = String(acc.password || acc.MK || '123456').trim();
-  const tier = acc.tier || 'MB Private Banking VIP';
+  const pass = String(acc.MK || acc.password || '123456').trim();
+  const tier = acc.tier || 'MB Priority Digital';
 
   const userAccount = {
     id: 1,
-    username: acc.username || acc.TK || num,
+    username: acc.TK || acc.username || folder,
     accountNumber: num,
     account_number: num,
     stk: num,
@@ -119,7 +194,7 @@ export default async function handler(req, res) {
     ''
   ).trim();
 
-  const { activeKey, accounts } = await getLiveAccountsData();
+  const { accountsMap, activeAccount } = await getLiveAccountsMap();
 
   // NẾU NGƯỜI DÙNG / APP GỬI USERNAME VÀ PASSWORD
   if (userParam || passParam) {
@@ -141,57 +216,20 @@ export default async function handler(req, res) {
       });
     }
 
-    // Tìm tài khoản trong accounts (hỗ trợ cả chữ như TRI và số như 22, 1800123123)
-    const lowerUser = userParam.toLowerCase();
-    const cleanUser = userParam.replace(/\D/g, '');
-
-    let matched = null;
-    let matchedKey = null;
-
-    for (const [key, item] of Object.entries(accounts)) {
-      if (!item) continue;
-      const keyStr = String(key).toLowerCase();
-      const uName = String(item.username || '').toLowerCase();
-      const aNum = String(item.accountNumber || item.stk || '').toLowerCase();
-      const phone = String(item.phone || item.sdt || '').replace(/\D/g, '');
-
-      if (
-        keyStr === lowerUser ||
-        uName === lowerUser ||
-        aNum === lowerUser ||
-        (cleanUser && (aNum === cleanUser || phone === cleanUser))
-      ) {
-        matched = item;
-        matchedKey = key;
-        break;
-      }
-    }
-
-    if (!matched) {
-      try {
-        const directRes = await fetch(`${FIREBASE_BASE}/${userParam}.json?ts=${Date.now()}`);
-        if (directRes.ok) {
-          const directData = await directRes.json();
-          if (directData && typeof directData === 'object' && (directData.password || directData.MK)) {
-            matched = directData;
-            matchedKey = userParam;
-          }
-        }
-      } catch (e) {}
-    }
+    const matched = resolveAccount(accountsMap, userParam, null);
 
     if (!matched) {
       return res.status(200).json({
         success: false,
-        code: 1,
+        code: 404,
         status: 'error',
-        message: 'Tài khoản không tồn tại trên hệ thống. Vui lòng kiểm tra lại.',
+        message: 'Tài khoản không tồn tại trên hệ thống Firebase. Vui lòng kiểm tra lại.',
         result: { responseCode: '404', message: 'Tài khoản không tồn tại' }
       });
     }
 
-    // Kiểm tra mật khẩu (hỗ trợ cả chữ như TRI và số như 123456)
-    const expectedPass = String(matched.password || matched.MK || '123456').trim();
+    // Kiểm tra mật khẩu (hỗ trợ MK / password)
+    const expectedPass = String(matched.MK || matched.password || '123456').trim();
     if (expectedPass.toLowerCase() !== passParam.toLowerCase() && expectedPass !== passParam) {
       return res.status(200).json({
         success: false,
@@ -203,33 +241,29 @@ export default async function handler(req, res) {
     }
 
     // ĐĂNG NHẬP THÀNH CÔNG: Tự động kích hoạt tài khoản này làm active_account
-    const token = `tok_mb_${matchedKey}_${Date.now()}`;
+    const folder = matched._folder || matched.TK || matched.username;
+    const token = `tok_mb_${folder}_${Date.now()}`;
     await fetch(`${FIREBASE_URL}/active_account.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(matchedKey)
+      body: JSON.stringify(folder)
     }).catch(() => {});
 
     return res.status(200).json(buildAccountResponse(matched, token));
   }
 
-  // NẾU APP MỞ LÊN KHÔNG GỬI CREDENTIALS: Lấy đúng tài khoản đang active trên Web
-  const effectiveKey = (activeKey && accounts[activeKey]) 
-    ? activeKey 
-    : (Object.keys(accounts).length > 0 ? Object.keys(accounts)[0] : '1800123123');
+  // NẾU APP MỞ LÊN KHÔNG GỬI CREDENTIALS: Lấy đúng tài khoản active trên Firebase
+  const effectiveAcc = resolveAccount(accountsMap, null, activeAccount);
+  if (!effectiveAcc) {
+    return res.status(200).json({
+      success: false,
+      code: 404,
+      status: 'error',
+      message: 'Hệ thống chưa có tài khoản nào được tạo trên Firebase.'
+    });
+  }
 
-  const activeAccData = accounts[effectiveKey] || {
-    accountNumber: effectiveKey,
-    stk: effectiveKey,
-    username: effectiveKey,
-    customerName: 'NGUYEN NGOC TRI',
-    accountName: 'NGUYEN NGOC TRI',
-    balance: 200000,
-    otp: '111111',
-    password: '123456',
-    tier: 'MB Private Banking VIP'
-  };
-
-  const token = `autotok_mb_${effectiveKey}_${Date.now()}`;
-  return res.status(200).json(buildAccountResponse(activeAccData, token));
+  const folder = effectiveAcc._folder || effectiveAcc.TK || effectiveAcc.username;
+  const token = `autotok_mb_${folder}_${Date.now()}`;
+  return res.status(200).json(buildAccountResponse(effectiveAcc, token));
 }

@@ -1,6 +1,12 @@
-const FIREBASE_URL = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/mbbank';
+/**
+ * MB Bank Find Bank & Beneficiary Lookup API
+ * SINGLE SOURCE OF TRUTH: Firebase Realtime Database
+ */
 
-// In-memory micro-cache (3 seconds TTL) for fast recipient lookups
+const FIREBASE_BASE = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app';
+const FIREBASE_URL = `${FIREBASE_BASE}/mbbank`;
+
+// Micro-cache (3 seconds TTL)
 const recipientCache = new Map();
 const CACHE_TTL = 3000;
 
@@ -12,10 +18,11 @@ async function lookupFirebaseRecipient(clean, bankCode) {
   }
 
   try {
-    const [bankRes, cleanRes, accRes] = await Promise.all([
-      fetch(`${FIREBASE_URL}/recipients/${bankCode}_${clean}.json`, { headers: { 'Connection': 'keep-alive' } }),
-      fetch(`${FIREBASE_URL}/recipients/${clean}.json`, { headers: { 'Connection': 'keep-alive' } }),
-      fetch(`${FIREBASE_URL}/accounts/${clean}.json`, { headers: { 'Connection': 'keep-alive' } })
+    const [bankRes, cleanRes, accRes, directRes] = await Promise.all([
+      fetch(`${FIREBASE_URL}/recipients/${bankCode}_${clean}.json`),
+      fetch(`${FIREBASE_URL}/recipients/${clean}.json`),
+      fetch(`${FIREBASE_URL}/accounts/${clean}.json`),
+      fetch(`${FIREBASE_BASE}/${clean}.json`)
     ]);
 
     if (bankRes.ok) {
@@ -42,25 +49,17 @@ async function lookupFirebaseRecipient(clean, bankCode) {
         return name;
       }
     }
-  } catch (e) {}
-
-  return null;
-}
-
-async function getOwnerInfo() {
-  try {
-    const res = await fetch(`${FIREBASE_URL}.json?ts=${Date.now()}`, { cache: 'no-store' });
-    if (res.ok) {
-      const root = await res.json();
-      if (root) {
-        const ownerAcc = String(root.active_account || root.accountNumber || '1800123123').replace(/\D/g, '');
-        const currentActive = (root.accounts && root.accounts[ownerAcc]) ? root.accounts[ownerAcc] : null;
-        const ownerName = String(currentActive?.customerName || currentActive?.accountName || root.customerName || root.accountName || 'NGUYEN NGOC TRI').trim().toUpperCase();
-        return { ownerAcc, ownerName };
+    if (directRes.ok) {
+      const data = await directRes.json();
+      if (data && (data.customerName || data.accountName || data.TK)) {
+        const name = (data.customerName || data.accountName || data.TK).trim().toUpperCase();
+        recipientCache.set(cacheKey, { name, time: Date.now() });
+        return name;
       }
     }
   } catch (e) {}
-  return { ownerAcc: '1800123123', ownerName: 'NGUYEN NGOC TRI' };
+
+  return null;
 }
 
 export default async function handler(req, res) {
@@ -98,20 +97,15 @@ export default async function handler(req, res) {
     });
   }
 
-  const owner = await getOwnerInfo();
-
   let resolvedName = null;
 
   if (customNameParam && typeof customNameParam === 'string' && customNameParam.trim().length > 1) {
     resolvedName = customNameParam.trim().toUpperCase();
-  } else if (clean === owner.ownerAcc || clean === '1234567890') {
-    resolvedName = owner.ownerName;
   } else {
-    // Chỉ lấy tên đã có sẵn trong Firebase
+    // Tra cứu danh bạ hoặc tài khoản trong Firebase
     resolvedName = await lookupFirebaseRecipient(clean, bankCode);
   }
 
-  // NẾU CHƯA NHẬP / KHÔNG CÓ TRONG FIREBASE -> HIỆN KHÔNG TỒN TẠI (XÓA BỎ HẾT TÊN ẢO)
   if (!resolvedName) {
     return res.status(200).json({
       success: false,
@@ -153,17 +147,12 @@ export default async function handler(req, res) {
     'MSB': 'NGAN HANG TMCP HANG HAI VIET NAM (MSB)',
     'HDB': 'NGAN HANG TMCP PHAT TRIEN TP.HCM (HDBANK)',
     'OCB': 'NGAN HANG TMCP PHUONG DONG (OCB)',
-    'LPB': 'NGAN HANG TMCP LOC PHAT VIET NAM (LPBANK)',
-    'MOMO': 'VI DIEN TU MOMO',
-    'ZALOPAY': 'VI DIEN TU ZALOPAY'
+    'LPB': 'NGAN HANG TMCP LOC PHAT VIET NAM (LPBANK)'
   };
 
   const fullBankName = bankNameMap[bankCode] || `NGAN HANG ${bankCode}`;
 
   const payload = {
-    success: true,
-    status: 'success',
-    code: 0,
     account_number: clean,
     accountNumber: clean,
     stk: clean,
@@ -182,19 +171,15 @@ export default async function handler(req, res) {
     bankCode: bankCode,
     bank_name: fullBankName,
     bankName: fullBankName,
-    data: {
-      account_number: clean,
-      accountNumber: clean,
-      stk: clean,
-      account_name: resolvedName,
-      accountName: resolvedName,
-      customerName: resolvedName,
-      bank_code: bankCode,
-      bankCode: bankCode,
-      bank_name: fullBankName,
-      bankName: fullBankName
-    }
+    status: 'ACTIVE'
   };
 
-  return res.status(200).json(payload);
+  return res.status(200).json({
+    success: true,
+    code: 0,
+    status: 'success',
+    data: payload,
+    result: payload,
+    ...payload
+  });
 }

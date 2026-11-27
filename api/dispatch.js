@@ -1,5 +1,88 @@
+/**
+ * MB Bank Web & Admin Dispatch API
+ * Central controller for managing accounts and beneficiaries directly on Firebase
+ * Dedicated top-level folder per account: /<username>.json
+ */
+
 const FIREBASE_BASE = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FIREBASE_URL = `${FIREBASE_BASE}/mbbank`;
+
+async function getLiveAccountsMap() {
+  const map = {};
+  let active = '';
+  try {
+    const [rootRes, mbRes] = await Promise.all([
+      fetch(`${FIREBASE_BASE}/.json?ts=${Date.now()}`, { cache: 'no-store' }),
+      fetch(`${FIREBASE_URL}.json?ts=${Date.now()}`, { cache: 'no-store' })
+    ]);
+    const rootData = rootRes.ok ? (await rootRes.json()) || {} : {};
+    const mbData = mbRes.ok ? (await mbRes.json()) || {} : {};
+
+    // 1. Quét các mục tài khoản độc lập tại gốc Firebase (VD: /TRI, /ABC)
+    for (const [k, v] of Object.entries(rootData)) {
+      if (k !== 'mbbank' && v && typeof v === 'object') {
+        if (v.TK || v.username || v.STK || v.accountNumber || v.balance !== undefined || v.TIEN !== undefined || v.MK || v.password) {
+          map[k] = { ...v, _folder: k };
+        }
+      }
+    }
+
+    // 2. Quét các mục trong /mbbank/accounts
+    if (mbData.accounts && typeof mbData.accounts === 'object') {
+      for (const [k, v] of Object.entries(mbData.accounts)) {
+        if (v && typeof v === 'object') {
+          if (!map[k]) {
+            map[k] = { ...v, _folder: k };
+          } else {
+            map[k] = { ...v, ...map[k], _folder: map[k]._folder || k };
+          }
+        }
+      }
+    }
+
+    if (mbData.active_account) {
+      active = String(mbData.active_account).trim();
+    }
+  } catch (e) {}
+
+  return { accountsMap: map, activeAccount: active };
+}
+
+function resolveAccount(accountsMap, query, activeAccount) {
+  if (query) {
+    const q = String(query).trim();
+    const qLower = q.toLowerCase();
+    const qClean = q.replace(/\D/g, '');
+
+    if (accountsMap[q]) return accountsMap[q];
+
+    for (const [key, acc] of Object.entries(accountsMap)) {
+      if (key.toLowerCase() === qLower) return acc;
+    }
+
+    for (const acc of Object.values(accountsMap)) {
+      const u = String(acc.TK || acc.username || '').toLowerCase();
+      if (u === qLower) return acc;
+    }
+
+    for (const acc of Object.values(accountsMap)) {
+      const stk = String(acc.STK || acc.accountNumber || acc.stk || '').toLowerCase();
+      if (stk === qLower) return acc;
+      if (qClean && stk.replace(/\D/g, '') === qClean) return acc;
+    }
+
+    return null;
+  }
+
+  if (activeAccount && accountsMap[activeAccount]) {
+    return accountsMap[activeAccount];
+  }
+  const keys = Object.keys(accountsMap);
+  if (keys.length > 0) {
+    return accountsMap[keys[0]];
+  }
+  return null;
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -16,42 +99,20 @@ export default async function handler(req, res) {
   // GET: Fetch all accounts and active account from Firebase
   if (req.method === 'GET') {
     try {
-      const [accsRes, activeRes, rootRes] = await Promise.all([
-        fetch(`${FIREBASE_URL}/accounts.json?ts=${Date.now()}`, { cache: 'no-store' }),
-        fetch(`${FIREBASE_URL}/active_account.json?ts=${Date.now()}`, { cache: 'no-store' }),
-        fetch(`${FIREBASE_BASE}.json?ts=${Date.now()}`, { cache: 'no-store' })
-      ]);
-      const accounts = accsRes.ok ? (await accsRes.json()) || {} : {};
-      const activeAccount = activeRes.ok ? String((await activeRes.json()) || '').trim() : '';
-      const rootData = rootRes.ok ? (await rootRes.json()) || {} : {};
-
-      // Tự động nhận diện các mục tài khoản riêng biệt tại gốc Firebase (Ví dụ: /TRI)
-      for (const [k, v] of Object.entries(rootData)) {
-        if (k !== 'mbbank' && v && typeof v === 'object' && (v.password || v.MK || v.balance !== undefined || v.TIEN !== undefined)) {
-          if (!accounts[k]) {
-            accounts[k] = v;
-          }
-        }
-      }
-
-      const accKeys = Object.keys(accounts);
-      const effectiveActive = (activeAccount && accounts[activeAccount]) 
-        ? activeAccount 
-        : (accKeys.length > 0 ? accKeys[0] : '1800123123');
-
-      const currentActive = accounts[effectiveActive] || {};
+      const { accountsMap, activeAccount } = await getLiveAccountsMap();
+      const currentActive = resolveAccount(accountsMap, null, activeAccount) || {};
       const actualBal = typeof currentActive.balance === 'number' 
         ? currentActive.balance 
         : (typeof currentActive.TIEN === 'number' ? currentActive.TIEN : 0);
-      const actualName = currentActive.customerName || currentActive.accountName || currentActive.TK || 'NGUYEN NGOC TRI';
-      const actualNum = currentActive.accountNumber || currentActive.stk || currentActive.STK || effectiveActive;
+      const actualName = currentActive.customerName || currentActive.accountName || currentActive.TK || 'THÀNH VIÊN MB';
+      const actualNum = currentActive.STK || currentActive.accountNumber || currentActive.stk || currentActive._folder || '';
 
       return res.status(200).json({
         success: true,
         code: 0,
-        active_account: effectiveActive,
-        activeAccount: effectiveActive,
-        accounts: accounts,
+        active_account: activeAccount,
+        activeAccount: activeAccount,
+        accounts: accountsMap,
         balance: actualBal,
         customerName: actualName,
         accountNumber: actualNum
@@ -67,7 +128,6 @@ export default async function handler(req, res) {
   }
   body = body || {};
 
-  // Bảo vệ cổng Admin bằng mã khóa bảo mật
   const adminKey = String(req.headers['x-admin-key'] || body.admin_key || body.adminKey || body.key || '').trim();
   if (adminKey !== '2009') {
     return res.status(401).json({ success: false, code: 401, message: 'Mã khóa bảo mật không chính xác' });
@@ -88,21 +148,22 @@ export default async function handler(req, res) {
     }
 
     try {
+      const { accountsMap } = await getLiveAccountsMap();
+      const acc = resolveAccount(accountsMap, accKey, null);
+      const folder = acc ? (acc._folder || acc.TK || acc.username) : accKey;
+
       await fetch(`${FIREBASE_URL}/active_account.json`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(accKey)
+        body: JSON.stringify(folder)
       });
-
-      const accRes = await fetch(`${FIREBASE_URL}/accounts/${accKey}.json?ts=${Date.now()}`);
-      const accData = accRes.ok ? await accRes.json() : null;
 
       return res.status(200).json({
         success: true,
         code: 0,
-        message: `Đã kích hoạt tài khoản ${accKey} làm tài khoản chính`,
-        active_account: accKey,
-        account: accData
+        message: `Đã kích hoạt tài khoản ${folder} làm tài khoản chính`,
+        active_account: folder,
+        account: acc
       });
     } catch (err) {
       return res.status(500).json({ success: false, code: 500, error: err.message });
@@ -113,13 +174,17 @@ export default async function handler(req, res) {
   if (action === 'update_balance') {
     const rawKey = body.accountNumber || body.account_number || body.stk || body.username || '';
     const accKey = String(rawKey).trim();
-    const newBal = Number(body.balance !== undefined ? body.balance : body.tien);
+    const newBal = Number(body.balance !== undefined ? body.balance : (body.tien !== undefined ? body.tien : body.TIEN));
 
     if (!accKey || !Number.isFinite(newBal) || newBal < 0) {
       return res.status(400).json({ success: false, code: 400, message: 'Tài khoản hoặc số dư không hợp lệ' });
     }
 
     try {
+      const { accountsMap } = await getLiveAccountsMap();
+      const acc = resolveAccount(accountsMap, accKey, null);
+      const folder = acc ? (acc._folder || acc.TK || acc.username) : accKey;
+
       const patchData = {
         balance: newBal,
         TIEN: newBal,
@@ -127,12 +192,12 @@ export default async function handler(req, res) {
       };
 
       await Promise.all([
-        fetch(`${FIREBASE_BASE}/${accKey}.json`, {
+        fetch(`${FIREBASE_BASE}/${folder}.json`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(patchData)
         }).catch(() => {}),
-        fetch(`${FIREBASE_URL}/accounts/${accKey}.json`, {
+        fetch(`${FIREBASE_URL}/accounts/${folder}.json`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(patchData)
@@ -142,69 +207,9 @@ export default async function handler(req, res) {
       return res.status(200).json({
         success: true,
         code: 0,
-        message: `Đã cập nhật số dư mục tài khoản ${accKey} thành ${newBal.toLocaleString('vi-VN')} VND`,
+        message: `Đã cập nhật số dư mục tài khoản ${folder} thành ${newBal.toLocaleString('vi-VN')} VND`,
         balance: newBal,
         TIEN: newBal
-      });
-    } catch (err) {
-      return res.status(500).json({ success: false, code: 500, error: err.message });
-    }
-  }
-
-  // ACTION: EDIT / UPDATE ACCOUNT DETAILS
-  if (action === 'update_account') {
-    const rawKey = body.accountNumber || body.account_number || body.stk || body.username || '';
-    const accKey = String(rawKey).trim();
-    if (!accKey) {
-      return res.status(400).json({ success: false, code: 400, message: 'Thiếu số tài khoản / username' });
-    }
-
-    try {
-      const accRes = await fetch(`${FIREBASE_URL}/accounts/${accKey}.json`);
-      const existing = accRes.ok ? (await accRes.json()) || {} : {};
-
-      const bal = Number.isFinite(Number(body.balance !== undefined ? body.balance : body.tien)) 
-        ? Number(body.balance !== undefined ? body.balance : body.tien) 
-        : (existing.balance || 0);
-
-      const updated = {
-        ...existing,
-        TK: body.username ? String(body.username).trim() : (existing.TK || existing.username || accKey),
-        MK: body.password ? String(body.password).trim() : (existing.MK || existing.password || '123456'),
-        OTP: body.otp ? String(body.otp).trim() : (existing.OTP || existing.otp || '111111'),
-        TIEN: bal,
-        STK: body.accountNumber || body.stk ? String(body.accountNumber || body.stk).trim() : (existing.STK || existing.accountNumber || accKey),
-        username: body.username ? String(body.username).trim() : (existing.username || accKey),
-        accountNumber: body.accountNumber || body.stk ? String(body.accountNumber || body.stk).trim() : (existing.accountNumber || accKey),
-        stk: body.accountNumber || body.stk ? String(body.accountNumber || body.stk).trim() : (existing.stk || accKey),
-        customerName: body.customerName ? body.customerName.trim().toUpperCase() : (existing.customerName || 'NGUYEN NGOC TRI'),
-        accountName: body.customerName ? body.customerName.trim().toUpperCase() : (existing.accountName || 'NGUYEN NGOC TRI'),
-        password: body.password ? String(body.password).trim() : (existing.password || '123456'),
-        phone: body.phone ? String(body.phone).trim() : (existing.phone || accKey),
-        otp: body.otp ? String(body.otp).trim() : (existing.otp || '111111'),
-        tier: body.tier || existing.tier || 'MB Priority Digital',
-        balance: bal,
-        updatedAt: new Date().toISOString()
-      };
-
-      await Promise.all([
-        fetch(`${FIREBASE_BASE}/${accKey}.json`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updated)
-        }).catch(() => {}),
-        fetch(`${FIREBASE_URL}/accounts/${accKey}.json`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(updated)
-        }).catch(() => {})
-      ]);
-
-      return res.status(200).json({
-        success: true,
-        code: 0,
-        message: `Đã cập nhật thông tin tài khoản ${accKey}`,
-        account: updated
       });
     } catch (err) {
       return res.status(500).json({ success: false, code: 500, error: err.message });
@@ -219,11 +224,28 @@ export default async function handler(req, res) {
       return res.status(400).json({ success: false, code: 400, message: 'Thiếu số tài khoản' });
     }
     try {
+      const { accountsMap, activeAccount } = await getLiveAccountsMap();
+      const acc = resolveAccount(accountsMap, accKey, null);
+      const folder = acc ? (acc._folder || acc.TK || acc.username) : accKey;
+
       await Promise.all([
-        fetch(`${FIREBASE_BASE}/${accKey}.json`, { method: 'DELETE' }).catch(() => {}),
-        fetch(`${FIREBASE_URL}/accounts/${accKey}.json`, { method: 'DELETE' }).catch(() => {})
+        fetch(`${FIREBASE_BASE}/${folder}.json`, { method: 'DELETE' }).catch(() => {}),
+        fetch(`${FIREBASE_URL}/accounts/${folder}.json`, { method: 'DELETE' }).catch(() => {}),
+        (accKey !== folder) ? fetch(`${FIREBASE_BASE}/${accKey}.json`, { method: 'DELETE' }).catch(() => {}) : Promise.resolve(),
+        (accKey !== folder) ? fetch(`${FIREBASE_URL}/accounts/${accKey}.json`, { method: 'DELETE' }).catch(() => {}) : Promise.resolve()
       ]);
-      return res.status(200).json({ success: true, code: 0, message: `Đã xóa tài khoản ${accKey}` });
+
+      if (activeAccount === folder || activeAccount === accKey) {
+        const remainingKeys = Object.keys(accountsMap).filter(k => k !== folder && k !== accKey);
+        const nextActive = remainingKeys.length > 0 ? remainingKeys[0] : '';
+        await fetch(`${FIREBASE_URL}/active_account.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(nextActive)
+        }).catch(() => {});
+      }
+
+      return res.status(200).json({ success: true, code: 0, message: `Đã xóa hoàn toàn tài khoản ${folder}` });
     } catch (err) {
       return res.status(500).json({ success: false, code: 500, error: err.message });
     }
@@ -235,9 +257,13 @@ export default async function handler(req, res) {
     const accKey = String(rawKey).trim();
     try {
       if (accKey) {
+        const { accountsMap } = await getLiveAccountsMap();
+        const acc = resolveAccount(accountsMap, accKey, null);
+        const folder = acc ? (acc._folder || acc.TK || acc.username) : accKey;
+
         await Promise.all([
-          fetch(`${FIREBASE_BASE}/${accKey}/transactions.json`, { method: 'DELETE' }).catch(() => {}),
-          fetch(`${FIREBASE_URL}/accounts/${accKey}/transactions.json`, { method: 'DELETE' }).catch(() => {})
+          fetch(`${FIREBASE_BASE}/${folder}/transactions.json`, { method: 'DELETE' }).catch(() => {}),
+          fetch(`${FIREBASE_URL}/accounts/${folder}/transactions.json`, { method: 'DELETE' }).catch(() => {})
         ]);
       }
       return res.status(200).json({ success: true, code: 0, message: 'Đã xóa toàn bộ lịch sử giao dịch' });
@@ -251,7 +277,7 @@ export default async function handler(req, res) {
   const stk = String(body.stk || body.STK || body.accountNumber || body.account_number || username).trim();
   const password = String(body.password || body.mk || body.MK || body.mat_khau || '123456').trim();
   const otp = String(body.otp || body.OTP || body.ma_otp || '111111').trim();
-  const name = String(body.customerName || body.accountName || body.name || username || 'NGUYEN NGOC TRI').trim().toUpperCase();
+  const name = String(body.customerName || body.accountName || body.name || username || 'THÀNH VIÊN MB').trim().toUpperCase();
   const phone = String(body.phone || body.sdt || stk || username).trim();
   const bal = Number.isFinite(Number(body.balance !== undefined ? body.balance : (body.tien !== undefined ? body.tien : body.TIEN))) 
     ? Number(body.balance !== undefined ? body.balance : (body.tien !== undefined ? body.tien : body.TIEN)) 
@@ -284,10 +310,21 @@ export default async function handler(req, res) {
       balance: bal,
       tier: tier,
       bankCode: 'MB',
+      transactions: {
+        [`TXN-INIT-${nodeKey}`]: {
+          id: `TXN-INIT-${nodeKey}`,
+          accountNumber: stk || nodeKey,
+          amount: bal,
+          balance: bal,
+          type: 'IN',
+          description: `Khoi tao so du ban dau: +${bal.toLocaleString('vi-VN')} VND`,
+          createdAt: new Date().toISOString()
+        }
+      },
       updatedAt: new Date().toISOString()
     };
 
-    // 1. TẠO MỤC RIÊNG VỚI TÊN TÀI KHOẢN ĐÓ NGAY GỐC FIREBASE: /<nodeKey>.json (Ví dụ: /TRI.json)
+    // TẠO MỤC RIÊNG VỚI TÊN TÀI KHOẢN ĐÓ NGAY GỐC FIREBASE: /<nodeKey>.json (Ví dụ: /TRI.json)
     await Promise.all([
       fetch(`${FIREBASE_BASE}/${nodeKey}.json`, {
         method: 'PUT',
@@ -298,12 +335,7 @@ export default async function handler(req, res) {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(accountRecord)
-      }),
-      (stk && stk !== nodeKey) ? fetch(`${FIREBASE_URL}/accounts/${stk}.json`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(accountRecord)
-      }) : Promise.resolve()
+      })
     ]);
 
     if (setActive) {

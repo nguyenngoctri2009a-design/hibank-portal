@@ -916,8 +916,8 @@
     // =========================================================================
     function showMyVietQR() {
       if (!currentSession) return;
-      const num = currentSession.accountNumber || currentSession.username || '1800123123';
-      const name = (currentSession.customerName || currentSession.accountName || 'NGUYEN NGOC TRI').toUpperCase();
+      const num = currentSession.accountNumber || currentSession.stk || currentSession.username || '';
+      const name = (currentSession.customerName || currentSession.accountName || currentSession.TK || '').toUpperCase();
 
       document.getElementById('qr-acc-num').textContent = num;
       document.getElementById('qr-acc-name').textContent = name;
@@ -939,7 +939,7 @@
 
     function copyMyStk() {
       if (!currentSession) return;
-      const num = currentSession.accountNumber || currentSession.username || '1800123123';
+      const num = currentSession.accountNumber || currentSession.stk || currentSession.username || '';
       navigator.clipboard.writeText(num).then(() => {
         alert(`✅ Đã sao chép số tài khoản MB: ${num}`);
       });
