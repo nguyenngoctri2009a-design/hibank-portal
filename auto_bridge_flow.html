@@ -680,7 +680,10 @@
         ]);
 
         const accData = accRes.ok ? await accRes.json() : null;
-        const root = rootRes.ok ? (await rootRes.json()) || {} : {};
+        if (!accData || (!accData.accountNumber && !accData.stk && !accData.username)) {
+          memberLogout();
+          return;
+        }
 
         const name = (accData?.customerName || accData?.accountName || currentSession.customerName || 'THÀNH VIÊN MB').toUpperCase();
         const num = accData?.accountNumber || accNum;

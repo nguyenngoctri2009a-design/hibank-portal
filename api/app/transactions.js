@@ -57,23 +57,22 @@ async function getStoredTransactions(accNum, name, bal, createdAt) {
 
     if (data && typeof data === 'object') {
       const customList = Object.values(data)
-        .filter(t => t && (String(t.accountNumber || '').trim() === String(accNum).trim() || String(t.accountNumber || '').replace(/\D/g, '') === String(accNum).replace(/\D/g, '')))
-        .filter(t => t.type === 'IN') // Chỉ trả về các giao dịch nhận/nạp tiền. Giao dịch chuyển tiền (OUT) App MB đã tự lưu và hiển thị cục bộ qua .mb_tx_history_vault.json, tránh bị nhân đôi!
+        .filter(t => t && typeof t === 'object')
         .map(t => ({
-          id: t.id,
+          id: t.id || `TXN-${Date.now()}`,
           accountNumber: accNum,
           account_number: accNum,
           stk: accNum,
           type: t.type || 'OUT',
-          amount: t.amount,
-          balance: t.balance,
-          so_tien: t.amount,
-          counterparty_name: t.receiverName || 'NGAN HANG TMCP QUAN DOI (MB)',
-          counterpartyName: t.receiverName || 'NGAN HANG TMCP QUAN DOI (MB)',
-          counterparty_bank: t.bankCode || 'MB',
-          counterpartyBank: t.bankCode || 'MB',
-          senderName: name,
-          sender_name: name,
+          amount: Number(t.amount || t.so_tien || 0),
+          balance: Number(t.balance !== undefined ? t.balance : bal),
+          so_tien: Number(t.amount || t.so_tien || 0),
+          counterparty_name: t.receiverName || t.counterparty_name || 'NGAN HANG TMCP QUAN DOI (MB)',
+          counterpartyName: t.receiverName || t.counterparty_name || 'NGAN HANG TMCP QUAN DOI (MB)',
+          counterparty_bank: t.bankCode || t.counterparty_bank || 'MB',
+          counterpartyBank: t.bankCode || t.counterparty_bank || 'MB',
+          senderName: t.senderName || name,
+          sender_name: t.senderName || name,
           customerName: name,
           customer_name: name,
           custName: name,
@@ -81,16 +80,17 @@ async function getStoredTransactions(accNum, name, bal, createdAt) {
           account_name: name,
           fullName: name,
           full_name: name,
-          description: t.description || `${name} chuyen tien`,
-          noi_dung: t.description || `${name} chuyen tien`,
-          noidung: t.description || `${name} chuyen tien`,
-          remark: t.description || `${name} chuyen tien`,
-          created_at: t.createdAt || new Date().toISOString(),
-          createdAt: t.createdAt || new Date().toISOString(),
+          description: t.description || t.noi_dung || `${name} chuyen tien`,
+          noi_dung: t.description || t.noi_dung || `${name} chuyen tien`,
+          noidung: t.description || t.noi_dung || `${name} chuyen tien`,
+          remark: t.description || t.noi_dung || `${name} chuyen tien`,
+          created_at: t.createdAt || t.created_at || new Date().toISOString(),
+          createdAt: t.createdAt || t.created_at || new Date().toISOString(),
         }));
 
       if (customList.length > 0) {
-        return [...customList.reverse(), initialTransaction];
+        // Trả về đúng 100% tất cả giao dịch có trong Firebase
+        return customList.reverse();
       }
     }
   } catch (e) {}
