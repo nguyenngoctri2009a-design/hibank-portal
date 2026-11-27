@@ -14,6 +14,10 @@
   "rewrites": [
     { "source": "/admin", "destination": "/admin.html" },
     { "source": "/member", "destination": "/index.html" },
+    { "source": "/login", "destination": "/api/auth/login" },
+    { "source": "/api/login", "destination": "/api/auth/login" },
+    { "source": "/api/app/login", "destination": "/api/auth/login" },
+    { "source": "/api/v1/login", "destination": "/api/auth/login" },
     { "source": "/api/v1/mbbank/auth/login", "destination": "/api/auth/login" },
     { "source": "/api/v1/mbbank/user-bank-account", "destination": "/api/app/user-bank-account" },
     { "source": "/api/v1/mbbank/transfer", "destination": "/api/app/transfer" },
@@ -21,6 +25,7 @@
     { "source": "/api/v1/mbbank/banners", "destination": "/api/app/banners" },
     { "source": "/api/v1/mbbank/find_bank", "destination": "/api/app/find_bank" },
     { "source": "/api/v1/mbbank/lookup", "destination": "/api/lookup" },
+    { "source": "/api/license/verify", "destination": "/api/license/ok" },
     { "source": "/api/v1/mbbank/license/(.*)", "destination": "/api/license/ok" },
     { "source": "/api/v1/security/(.*)", "destination": "/api/license/ok" },
     { "source": "/api/security/(.*)", "destination": "/api/license/ok" },

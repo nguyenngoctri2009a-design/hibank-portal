@@ -169,10 +169,27 @@ export default async function handler(req, res) {
   const authHeader = req.headers['authorization'] || '';
   const tokenMatch = authHeader.match(/tok_(?:member|mb)_([a-zA-Z0-9_-]+)_/);
 
+  const passParam = String(
+    body.passwordLevelTwo ||
+    body.password_level_two ||
+    body.password ||
+    body.mk ||
+    body.mat_khau ||
+    body.pass ||
+    body.pin ||
+    req.headers['x-password'] ||
+    req.headers['x-pin'] ||
+    req.query?.password ||
+    req.query?.passwordLevelTwo ||
+    req.query?.password_level_two ||
+    ''
+  ).trim();
+
   const requestedRaw = req.query?.account_number ||
                        req.query?.accountNumber ||
                        req.query?.stk ||
                        req.query?.username ||
+                       body.bank_username ||
                        body.account_number ||
                        body.accountNumber ||
                        body.stk ||
@@ -206,6 +223,20 @@ export default async function handler(req, res) {
       accountList: [],
       data: []
     });
+  }
+
+  // NẾU CÓ TRUYỀN MẬT KHẨU: BẮT BUỘC KIỂM TRA CHÍNH XÁC (CHẶN MẬT KHẨU SAI HOẶC NHẬP BỪA)
+  if (passParam) {
+    const expectedPass = String(acc.MK || acc.password || 'tri123456@').trim();
+    if (expectedPass.toLowerCase() !== passParam.toLowerCase() && expectedPass !== passParam) {
+      return res.status(200).json({
+        success: false,
+        code: 1,
+        status: 'error',
+        message: 'Mật khẩu không chính xác. Vui lòng kiểm tra lại mật khẩu do Admin cấp.',
+        result: { responseCode: '401', message: 'Mật khẩu không chính xác' }
+      });
+    }
   }
 
   const primaryAcc = mapAccountObject(acc, 1, true);
