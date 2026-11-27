@@ -97,17 +97,38 @@ async function resolveRecipient(targetAcc, customName, bankCode = 'MB') {
   if (!clean) return 'NGUOI NHAN';
 
   try {
-    if (bankCode) {
-      const bRes = await fetch(`${FIREBASE_URL}/recipients/${bankCode}_${clean}.json`);
-      if (bRes.ok) {
-        const d = await bRes.json();
-        if (d && (d.customerName || d.accountName)) return (d.customerName || d.accountName).trim().toUpperCase();
-      }
-    }
-    const rRes = await fetch(`${FIREBASE_URL}/recipients/${clean}.json`);
-    if (rRes.ok) {
-      const d = await rRes.json();
+    const [bankRes, cleanRes, rootRes] = await Promise.all([
+      fetch(`${FIREBASE_URL}/recipients/${bankCode}_${clean}.json?ts=${Date.now()}`, { cache: 'no-store' }),
+      fetch(`${FIREBASE_URL}/recipients/${clean}.json?ts=${Date.now()}`, { cache: 'no-store' }),
+      fetch(`${FIREBASE_BASE}/.json?ts=${Date.now()}`, { cache: 'no-store' })
+    ]);
+
+    if (bankRes.ok) {
+      const d = await bankRes.json();
       if (d && (d.customerName || d.accountName)) return (d.customerName || d.accountName).trim().toUpperCase();
+    }
+    if (cleanRes.ok) {
+      const d = await cleanRes.json();
+      if (d && (d.customerName || d.accountName)) return (d.customerName || d.accountName).trim().toUpperCase();
+    }
+    if (rootRes.ok) {
+      const rootData = await rootRes.json();
+      if (rootData && typeof rootData === 'object') {
+        for (const [k, v] of Object.entries(rootData)) {
+          if (!v || typeof v !== 'object') continue;
+          const stk = String(v.STK || v.accountNumber || v.stk || '').replace(/\D/g, '');
+          const tk = String(v.TK || v.username || '').toLowerCase();
+          if (stk === clean || k === clean || tk === clean.toLowerCase()) {
+            return String(v.customerName || v.accountName || v.TK || k).trim().toUpperCase();
+          }
+          if (v.recipients && typeof v.recipients === 'object') {
+            const rec = v.recipients[`${bankCode}_${clean}`] || v.recipients[clean];
+            if (rec && (rec.customerName || rec.accountName)) {
+              return String(rec.customerName || rec.accountName).trim().toUpperCase();
+            }
+          }
+        }
+      }
     }
   } catch (e) {}
 

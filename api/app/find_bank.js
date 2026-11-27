@@ -1,12 +1,12 @@
 /**
  * MB Bank Find Bank & Beneficiary Lookup API
  * SINGLE SOURCE OF TRUTH: Firebase Realtime Database
+ * Tra cứu 100% qua Firebase Realtime Database (không dùng dữ liệu ảo)
  */
 
 const FIREBASE_BASE = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app';
 const FIREBASE_URL = `${FIREBASE_BASE}/mbbank`;
 
-// Micro-cache (3 seconds TTL)
 const recipientCache = new Map();
 const CACHE_TTL = 3000;
 
@@ -18,11 +18,10 @@ async function lookupFirebaseRecipient(clean, bankCode) {
   }
 
   try {
-    const [bankRes, cleanRes, accRes, directRes] = await Promise.all([
-      fetch(`${FIREBASE_URL}/recipients/${bankCode}_${clean}.json`),
-      fetch(`${FIREBASE_URL}/recipients/${clean}.json`),
-      fetch(`${FIREBASE_URL}/accounts/${clean}.json`),
-      fetch(`${FIREBASE_BASE}/${clean}.json`)
+    const [bankRes, cleanRes, rootRes] = await Promise.all([
+      fetch(`${FIREBASE_URL}/recipients/${bankCode}_${clean}.json?ts=${Date.now()}`, { cache: 'no-store' }),
+      fetch(`${FIREBASE_URL}/recipients/${clean}.json?ts=${Date.now()}`, { cache: 'no-store' }),
+      fetch(`${FIREBASE_BASE}/.json?ts=${Date.now()}`, { cache: 'no-store' })
     ]);
 
     if (bankRes.ok) {
@@ -41,20 +40,31 @@ async function lookupFirebaseRecipient(clean, bankCode) {
         return name;
       }
     }
-    if (accRes.ok) {
-      const data = await accRes.json();
-      if (data && (data.customerName || data.accountName)) {
-        const name = (data.customerName || data.accountName).trim().toUpperCase();
-        recipientCache.set(cacheKey, { name, time: Date.now() });
-        return name;
-      }
-    }
-    if (directRes.ok) {
-      const data = await directRes.json();
-      if (data && (data.customerName || data.accountName || data.TK)) {
-        const name = (data.customerName || data.accountName || data.TK).trim().toUpperCase();
-        recipientCache.set(cacheKey, { name, time: Date.now() });
-        return name;
+    if (rootRes.ok) {
+      const rootData = await rootRes.json();
+      if (rootData && typeof rootData === 'object') {
+        for (const [k, v] of Object.entries(rootData)) {
+          if (!v || typeof v !== 'object') continue;
+
+          // Kiểm tra nếu k hoặc STK hoặc TK trùng với clean
+          const stk = String(v.STK || v.accountNumber || v.stk || '').replace(/\D/g, '');
+          const tk = String(v.TK || v.username || '').toLowerCase();
+          if (stk === clean || k === clean || tk === clean.toLowerCase()) {
+            const name = String(v.customerName || v.accountName || v.TK || k).trim().toUpperCase();
+            recipientCache.set(cacheKey, { name, time: Date.now() });
+            return name;
+          }
+
+          // Kiểm tra subfolder recipients trong mục tài khoản đó
+          if (v.recipients && typeof v.recipients === 'object') {
+            const rec = v.recipients[`${bankCode}_${clean}`] || v.recipients[clean];
+            if (rec && (rec.customerName || rec.accountName)) {
+              const name = String(rec.customerName || rec.accountName).trim().toUpperCase();
+              recipientCache.set(cacheKey, { name, time: Date.now() });
+              return name;
+            }
+          }
+        }
       }
     }
   } catch (e) {}
@@ -66,7 +76,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Cache-Control', 'public, s-maxage=1, stale-while-revalidate=5');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
 
   if (req.method === 'OPTIONS') {
     return res.status(204).end();
@@ -102,7 +112,6 @@ export default async function handler(req, res) {
   if (customNameParam && typeof customNameParam === 'string' && customNameParam.trim().length > 1) {
     resolvedName = customNameParam.trim().toUpperCase();
   } else {
-    // Tra cứu danh bạ hoặc tài khoản trong Firebase
     resolvedName = await lookupFirebaseRecipient(clean, bankCode);
   }
 

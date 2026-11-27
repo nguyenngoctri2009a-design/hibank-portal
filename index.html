@@ -700,18 +700,22 @@
     // =========================================================================
     async function loadUserAccount(silent = false) {
       if (!currentSession) return;
-      const accNum = currentSession.accountNumber || currentSession.username || currentSession.stk || currentSession.STK;
+      const uName = currentSession.username || currentSession.TK || '';
+      const accNum = currentSession.accountNumber || currentSession.stk || currentSession.STK || uName;
 
       try {
-        const [accRes, rootRes, directRes] = await Promise.all([
+        const [directRes, accRes, numRes] = await Promise.all([
+          uName ? fetch(`https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/${uName}.json?ts=${Date.now()}`, { cache: 'no-store' }) : Promise.resolve(null),
           fetch(`${FIREBASE_BASE}/accounts/${accNum}.json?ts=${Date.now()}`, { cache: 'no-store' }),
-          fetch(`${FIREBASE_BASE}.json?ts=${Date.now()}`, { cache: 'no-store' }),
           fetch(`https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/${accNum}.json?ts=${Date.now()}`, { cache: 'no-store' })
         ]);
 
-        let accData = accRes.ok ? await accRes.json() : null;
-        if (!accData && directRes.ok) {
-          accData = await directRes.json();
+        let accData = (directRes && directRes.ok) ? await directRes.json() : null;
+        if (!accData && accRes && accRes.ok) {
+          accData = await accRes.json();
+        }
+        if (!accData && numRes && numRes.ok) {
+          accData = await numRes.json();
         }
 
         // NẾU TÀI KHOẢN ĐÃ BỊ XÓA TRÊN FIREBASE: ĐĂNG XUẤT NGAY LẬP TỨC!
@@ -848,7 +852,8 @@
       btn.textContent = 'Đang lưu lên Firebase...';
 
       try {
-        await Promise.all([
+        const uName = (currentSession && (currentSession.username || currentSession.TK)) ? (currentSession.username || currentSession.TK) : '';
+        const calls = [
           fetch(`${FIREBASE_BASE}/recipients/${cleanAcc}.json`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -859,7 +864,15 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           })
-        ]);
+        ];
+        if (uName) {
+          calls.push(fetch(`https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/${uName}/recipients/${bank}_${cleanAcc}.json`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          }));
+        }
+        await Promise.all(calls);
 
         log(`✅ Đã lưu danh bạ: [${bank}] ${cleanAcc} ➔ ${name}. App MB Bank sẽ nhận diện ngay!`);
         alert(`✅ ĐÃ LƯU THÀNH CÔNG!\n\nNgân hàng: ${bank}\nSố tài khoản: ${cleanAcc}\nTên thụ hưởng: ${name}\n\nKhi mở App MB Bank chuyển tiền đến số này, App sẽ tự động hiển thị chính xác tên ${name}.`);
@@ -879,10 +892,16 @@
       if (!confirm(`Xác nhận xóa tài khoản [${bank}] ${acc} khỏi danh bạ thụ hưởng trên Firebase?`)) return;
       try {
         const cleanAcc = acc.replace(/\D/g, '');
-        await Promise.all([
+        const uName = (currentSession && (currentSession.username || currentSession.TK)) ? (currentSession.username || currentSession.TK) : '';
+        const calls = [
           fetch(`${FIREBASE_BASE}/recipients/${cleanAcc}.json`, { method: 'DELETE' }),
           fetch(`${FIREBASE_BASE}/recipients/${bank}_${cleanAcc}.json`, { method: 'DELETE' })
-        ]);
+        ];
+        if (uName) {
+          calls.push(fetch(`https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/${uName}/recipients/${bank}_${cleanAcc}.json`, { method: 'DELETE' }));
+          calls.push(fetch(`https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/${uName}/recipients/${cleanAcc}.json`, { method: 'DELETE' }));
+        }
+        await Promise.all(calls);
         log(`Đã xóa người nhận [${bank}] ${acc} khỏi Firebase.`);
         await loadRecipientsList();
       } catch (err) {
