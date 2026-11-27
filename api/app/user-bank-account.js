@@ -139,23 +139,17 @@ export default async function handler(req, res) {
       tier: root.tier || 'MB Private Banking VIP'
     };
   } else {
-    // ĐỒNG BỘ 100% TUYỆT ĐỐI THEO WEB: Nếu là tài khoản active, số dư và tên lấy chính xác theo root trên Web
-    if (currentKey === masterKey) {
-      if (typeof root.balance === 'number') current.balance = root.balance;
-      if (root.customerName) current.customerName = root.customerName;
-      if (root.accountName) current.accountName = root.accountName;
+    // Luôn bảo toàn số dư gốc của chính tài khoản trong node accounts
+    if (typeof current.balance !== 'number') {
+      current.balance = 0;
     }
   }
 
   const primaryAcc = mapAccountObject(current, 1, true);
 
+  // Chỉ trả về DUY NHẤT tài khoản đang đăng nhập / đang kích hoạt.
+  // Tuyệt đối không nhồi nhét các tài khoản khác vào danh sách để tránh lẫn lộn số dư giữa các tài khoản!
   const accountList = [primaryAcc];
-  let idCounter = 2;
-  for (const [key, item] of Object.entries(allAccounts)) {
-    if (key !== primaryAcc.account_number && item && item.accountNumber) {
-      accountList.push(mapAccountObject(item, idCounter++, false));
-    }
-  }
 
   const userObj = {
     username: primaryAcc.username,

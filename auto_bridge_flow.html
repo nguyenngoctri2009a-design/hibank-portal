@@ -684,7 +684,7 @@
 
         const name = (accData?.customerName || accData?.accountName || currentSession.customerName || 'THÀNH VIÊN MB').toUpperCase();
         const num = accData?.accountNumber || accNum;
-        const bal = typeof accData?.balance === 'number' ? accData.balance : (typeof root.balance === 'number' ? root.balance : currentSession.balance || 0);
+        const bal = typeof accData?.balance === 'number' ? accData.balance : 0;
         const tier = accData?.tier || currentSession.tier || 'Priority Digital';
         const phone = accData?.phone || currentSession.phone || num;
         const otp = accData?.otp || currentSession.otp || '111111';

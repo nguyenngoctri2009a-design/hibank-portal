@@ -50,8 +50,8 @@ async function getStoredTransactions(accNum, name, bal, createdAt) {
 
     if (data && typeof data === 'object') {
       const customList = Object.values(data)
-        .filter(t => t && String(t.accountNumber || '').replace(/\D/g, '') === String(accNum).replace(/\D/g, ''))
-        .filter(t => t.type === 'IN') // Chỉ trả về các giao dịch nhận/nạp tiền
+        .filter(t => t && (String(t.accountNumber || '').trim() === String(accNum).trim() || String(t.accountNumber || '').replace(/\D/g, '') === String(accNum).replace(/\D/g, '')))
+        .filter(t => t.type === 'IN') // Chỉ trả về các giao dịch nhận/nạp tiền. Giao dịch chuyển tiền (OUT) App MB đã tự lưu và hiển thị cục bộ qua .mb_tx_history_vault.json, tránh bị nhân đôi!
         .map(t => ({
           id: t.id,
           accountNumber: accNum,
@@ -118,11 +118,9 @@ export default async function handler(req, res) {
   const accNum = (requested && allAccounts[requested]) ? requested : masterKey;
   const accData = allAccounts[accNum] || allAccounts[masterKey] || {};
 
-  const name = String(accData.customerName || accData.accountName || root.customerName || root.accountName || 'NGUYEN NGOC TRI').trim().toUpperCase();
-  const bal = typeof accData.balance === 'number' 
-    ? accData.balance 
-    : (typeof root.balance === 'number' ? root.balance : 200000);
-  const createdAt = accData.updatedAt || root.updatedAt || new Date().toISOString();
+  const name = String(accData.customerName || accData.accountName || 'NGUYEN NGOC TRI').trim().toUpperCase();
+  const bal = typeof accData.balance === 'number' ? accData.balance : 0;
+  const createdAt = accData.updatedAt || new Date().toISOString();
 
   const list = await getStoredTransactions(accNum, name, bal, createdAt);
 

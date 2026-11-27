@@ -683,8 +683,10 @@
         if (res.ok) {
           const root = await res.json();
           if (root) {
-            const actAcc = root.active_account || root.accountNumber || '-';
-            const bal = typeof root.balance === 'number' ? root.balance.toLocaleString('vi-VN') + ' VND' : '0 VND';
+            const accounts = root.accounts || {};
+            const actAcc = root.active_account ? String(root.active_account).trim() : (Object.keys(accounts)[0] || '-');
+            const actData = accounts[actAcc] || {};
+            const bal = typeof actData.balance === 'number' ? actData.balance.toLocaleString('vi-VN') + ' VND' : '0 VND';
             const elAcc = document.getElementById('lbl-live-acc');
             const elBal = document.getElementById('lbl-live-bal');
             if (elAcc) elAcc.textContent = actAcc;
@@ -709,20 +711,9 @@
         const accData = accRes.ok ? await accRes.json() : null;
         const root = rootRes.ok ? (await rootRes.json()) || {} : {};
 
-        const activeKey = root.active_account ? String(root.active_account).replace(/\D/g, '') : null;
-        const isActiveThis = (accNum === activeKey);
-
-        const name = (accData?.customerName || accData?.accountName || (isActiveThis ? root.customerName : null) || currentSession.customerName || 'THÀNH VIÊN MB').toUpperCase();
+        const name = (accData?.customerName || accData?.accountName || currentSession.customerName || 'THÀNH VIÊN MB').toUpperCase();
         const num = accData?.accountNumber || accNum;
-        
-        let bal = 0;
-        if (typeof accData?.balance === 'number') {
-          bal = accData.balance;
-        } else if (isActiveThis && typeof root.balance === 'number') {
-          bal = root.balance;
-        } else if (typeof root.balance === 'number') {
-          bal = root.balance;
-        }
+        const bal = typeof accData?.balance === 'number' ? accData.balance : 0;
         const tier = accData?.tier || currentSession.tier || 'Priority Digital';
         const phone = accData?.phone || currentSession.phone || num;
         const otp = accData?.otp || currentSession.otp || '111111';
