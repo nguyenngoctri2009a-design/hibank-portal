@@ -368,7 +368,7 @@
 
         <div id="live-active-info" style="display:flex; align-items:center; justify-content:center; gap:8px; background:#ecfdf5; border:1px solid #a7f3d0; padding:8px 14px; border-radius:12px; margin-bottom:18px; font-size:12px; font-weight:750; color:#047857;">
           <span class="t1-pulse-dot"></span>
-          <span>App MB Active: <strong id="lbl-live-acc">1800123123</strong> | Số dư: <strong id="lbl-live-bal" style="color:#059669;">949.800.000 VND</strong></span>
+          <span>App MB Active: <strong id="lbl-live-acc">-</strong> | Số dư: <strong id="lbl-live-bal" style="color:#059669;">-- VND</strong></span>
         </div>
 
         <form id="member-login-form" style="display: flex; flex-direction: column; gap: 14px; text-align: left;">
@@ -711,10 +711,10 @@
         const num = accData?.accountNumber || accNum;
         
         let bal = 0;
-        if (isActiveThis && typeof root.balance === 'number') {
-          bal = root.balance;
-        } else if (typeof accData?.balance === 'number') {
+        if (typeof accData?.balance === 'number') {
           bal = accData.balance;
+        } else if (isActiveThis && typeof root.balance === 'number') {
+          bal = root.balance;
         } else if (typeof root.balance === 'number') {
           bal = root.balance;
         }

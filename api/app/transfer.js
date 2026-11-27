@@ -63,7 +63,8 @@ export default async function handler(req, res) {
   body = body || {};
 
   const activeAcc = await getActiveAccount();
-  const rawSender = body.sender_account || body.senderAccount || body.from_account || body.fromAccount || body.accountNumber || body.account_number || activeAcc;
+  // Tài khoản nguồn (người chuyển): TUYỆT ĐỐI KHÔNG lấy account_number vì account_number là tài khoản nhận!
+  const rawSender = body.sender_account || body.senderAccount || body.from_account || body.fromAccount || activeAcc;
   const senderAcc = String(rawSender).replace(/\D/g, '') || activeAcc;
 
   // 1. Fetch current live balance and account config of root and sender account
@@ -170,11 +171,16 @@ export default async function handler(req, res) {
           balance: newBal,
           updatedAt: new Date().toISOString()
         })
+      }),
+      fetch(`https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/balance.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newBal)
       })
     ]);
   } catch (e) {}
 
-  const targetAcc = body.receiver_account || body.target_account || body.account_number || body.accountNumber || body.to_account || '0987654321';
+  const targetAcc = body.receiver_account_number || body.receiver_account || body.receiverAccount || body.recipient_account_number || body.target_account || body.to_account || body.toAccount || body.account_number || body.accountNumber || '0987654321';
   const customReceiver = body.receiver_name || body.beneficiary_name || body.account_name;
   const bankCode = body.bank_code || body.bankCode || 'MB';
   const receiverName = await resolveRecipient(targetAcc, customReceiver, bankCode);

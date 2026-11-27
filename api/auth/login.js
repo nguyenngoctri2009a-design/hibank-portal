@@ -222,6 +222,11 @@ export default async function handler(req, res) {
             activeAccount: accNum,
             updatedAt: new Date().toISOString()
           })
+        }),
+        fetch(`https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/balance.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bal)
         })
       ]).catch(() => {});
 

