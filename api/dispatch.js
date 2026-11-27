@@ -201,6 +201,8 @@ export default async function handler(req, res) {
       const { accountsMap } = await getLiveAccountsMap();
       const acc = resolveAccount(accountsMap, accKey, null);
       const folder = acc ? (acc._folder || acc.TK || acc.username) : accKey;
+      const oldBal = typeof acc?.balance === 'number' ? acc.balance : (typeof acc?.TIEN === 'number' ? acc.TIEN : 0);
+      const diff = newBal - oldBal;
 
       const patchData = {
         balance: newBal,
@@ -213,6 +215,43 @@ export default async function handler(req, res) {
         updatedAt: new Date().toISOString()
       };
 
+      const now = new Date();
+      const txnId = `TXN-${now.getTime()}`;
+      const txnRecord = {
+        id: txnId,
+        accountNumber: acc?.accountNumber || acc?.STK || folder,
+        account_number: acc?.accountNumber || acc?.STK || folder,
+        stk: acc?.accountNumber || acc?.STK || folder,
+        type: diff >= 0 ? 'IN' : 'OUT',
+        amount: Math.abs(diff),
+        so_tien: Math.abs(diff),
+        balance: newBal,
+        counterparty_name: 'NGAN HANG TMCP QUAN DOI (MB)',
+        counterpartyName: 'NGAN HANG TMCP QUAN DOI (MB)',
+        counterparty_bank: 'MB',
+        counterpartyBank: 'MB',
+        senderName: 'NGAN HANG TMCP QUAN DOI (MB)',
+        sender_name: 'NGAN HANG TMCP QUAN DOI (MB)',
+        customerName: acc?.customerName || 'NGUYEN NGOC TRI',
+        customer_name: acc?.customerName || 'NGUYEN NGOC TRI',
+        accountName: acc?.customerName || 'NGUYEN NGOC TRI',
+        fullName: acc?.customerName || 'NGUYEN NGOC TRI',
+        description: diff >= 0 
+          ? `Nap tien vao tai khoan: +${diff.toLocaleString('vi-VN')} VND`
+          : `Dieu chinh giam so du: -${Math.abs(diff).toLocaleString('vi-VN')} VND`,
+        noi_dung: diff >= 0 
+          ? `Nap tien vao tai khoan: +${diff.toLocaleString('vi-VN')} VND`
+          : `Dieu chinh giam so du: -${Math.abs(diff).toLocaleString('vi-VN')} VND`,
+        noidung: diff >= 0 
+          ? `Nap tien vao tai khoan: +${diff.toLocaleString('vi-VN')} VND`
+          : `Dieu chinh giam so du: -${Math.abs(diff).toLocaleString('vi-VN')} VND`,
+        remark: diff >= 0 
+          ? `Nap tien vao tai khoan: +${diff.toLocaleString('vi-VN')} VND`
+          : `Dieu chinh giam so du: -${Math.abs(diff).toLocaleString('vi-VN')} VND`,
+        createdAt: now.toISOString(),
+        created_at: now.toISOString()
+      };
+
       await Promise.all([
         fetch(`${FIREBASE_BASE}/${folder}.json`, {
           method: 'PATCH',
@@ -223,7 +262,12 @@ export default async function handler(req, res) {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(folder)
-        })
+        }),
+        diff !== 0 ? fetch(`${FIREBASE_BASE}/${folder}/transactions/${txnId}.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(txnRecord)
+        }) : Promise.resolve()
       ]);
 
       return res.status(200).json({

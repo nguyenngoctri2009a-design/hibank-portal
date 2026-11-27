@@ -171,7 +171,17 @@ async function getStoredTransactions(acc, folder) {
         }));
 
       if (customList.length > 0) {
-        return customList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        const sorted = customList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        if (sorted[0]) {
+          sorted[0].balance = bal;
+          sorted[0].new_balance = bal;
+          sorted[0].account_balance = bal;
+          sorted[0].available_balance = bal;
+          sorted[0].accountBalance = bal;
+          sorted[0].availableBalance = bal;
+          sorted[0].currentBalance = bal;
+        }
+        return sorted;
       }
     }
   } catch (e) {}
@@ -240,12 +250,25 @@ export default async function handler(req, res) {
     code: 0,
     status: 'success',
     accountNumber: accNum,
+    account_number: accNum,
+    stk: accNum,
+    so_tai_khoan: accNum,
     balance: bal,
+    account_balance: bal,
+    accountBalance: bal,
+    available_balance: bal,
+    availableBalance: bal,
+    current_balance: bal,
+    currentBalance: bal,
+    new_balance: bal,
+    so_tien: bal,
+    soTien: bal,
     transactions: list,
     data: list,
-    account_number: accNum,
     account_name: name,
     customer_name: name,
+    customerName: name,
+    fullName: name,
     total: list.length,
     page: 1,
     limit: 20
