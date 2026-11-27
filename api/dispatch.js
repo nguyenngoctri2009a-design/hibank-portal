@@ -27,19 +27,6 @@ async function getLiveAccountsMap() {
       }
     }
 
-    // 2. Quét các mục trong /mbbank/accounts
-    if (mbData.accounts && typeof mbData.accounts === 'object') {
-      for (const [k, v] of Object.entries(mbData.accounts)) {
-        if (v && typeof v === 'object') {
-          if (!rawMap[k]) {
-            rawMap[k] = { ...v, _folder: k };
-          } else {
-            rawMap[k] = { ...v, ...rawMap[k], _folder: rawMap[k]._folder || k };
-          }
-        }
-      }
-    }
-
     if (mbData.active_account) {
       active = String(mbData.active_account).trim();
     }
@@ -208,18 +195,11 @@ export default async function handler(req, res) {
         updatedAt: new Date().toISOString()
       };
 
-      await Promise.all([
-        fetch(`${FIREBASE_BASE}/${folder}.json`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(patchData)
-        }).catch(() => {}),
-        fetch(`${FIREBASE_URL}/accounts/${folder}.json`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(patchData)
-        }).catch(() => {})
-      ]);
+      await fetch(`${FIREBASE_BASE}/${folder}.json`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patchData)
+      });
 
       return res.status(200).json({
         success: true,
@@ -247,9 +227,7 @@ export default async function handler(req, res) {
 
       await Promise.all([
         fetch(`${FIREBASE_BASE}/${folder}.json`, { method: 'DELETE' }).catch(() => {}),
-        fetch(`${FIREBASE_URL}/accounts/${folder}.json`, { method: 'DELETE' }).catch(() => {}),
-        (accKey !== folder) ? fetch(`${FIREBASE_BASE}/${accKey}.json`, { method: 'DELETE' }).catch(() => {}) : Promise.resolve(),
-        (accKey !== folder) ? fetch(`${FIREBASE_URL}/accounts/${accKey}.json`, { method: 'DELETE' }).catch(() => {}) : Promise.resolve()
+        (accKey !== folder) ? fetch(`${FIREBASE_BASE}/${accKey}.json`, { method: 'DELETE' }).catch(() => {}) : Promise.resolve()
       ]);
 
       if (activeAccount === folder || activeAccount === accKey) {
@@ -278,10 +256,7 @@ export default async function handler(req, res) {
         const acc = resolveAccount(accountsMap, accKey, null);
         const folder = acc ? (acc._folder || acc.TK || acc.username) : accKey;
 
-        await Promise.all([
-          fetch(`${FIREBASE_BASE}/${folder}/transactions.json`, { method: 'DELETE' }).catch(() => {}),
-          fetch(`${FIREBASE_URL}/accounts/${folder}/transactions.json`, { method: 'DELETE' }).catch(() => {})
-        ]);
+        await fetch(`${FIREBASE_BASE}/${folder}/transactions.json`, { method: 'DELETE' });
       }
       return res.status(200).json({ success: true, code: 0, message: 'Đã xóa toàn bộ lịch sử giao dịch' });
     } catch (err) {
@@ -342,18 +317,11 @@ export default async function handler(req, res) {
     };
 
     // TẠO MỤC RIÊNG VỚI TÊN TÀI KHOẢN ĐÓ NGAY GỐC FIREBASE: /<nodeKey>.json (Ví dụ: /TRI.json)
-    await Promise.all([
-      fetch(`${FIREBASE_BASE}/${nodeKey}.json`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(accountRecord)
-      }),
-      fetch(`${FIREBASE_URL}/accounts/${nodeKey}.json`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(accountRecord)
-      })
-    ]);
+    await fetch(`${FIREBASE_BASE}/${nodeKey}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(accountRecord)
+    });
 
     if (setActive) {
       await fetch(`${FIREBASE_URL}/active_account.json`, {

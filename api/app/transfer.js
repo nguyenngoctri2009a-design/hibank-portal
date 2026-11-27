@@ -238,7 +238,7 @@ export default async function handler(req, res) {
     });
   }
 
-  // 3. TRỪ TRỰC TIẾP VÀO SỐ DƯ GỐC CỦA MỤC TÀI KHOẢN TRÊN FIREBASE
+  // 3. TRỪ TRỰC TIẾP VÀO SỐ DƯ GỐC CỦA MỤC TÀI KHOẢN TRÊN FIREBASE (KHÔNG TẠO FILE JSON, GỌI API CLOUD FIREBASE)
   const newBal = Math.max(0, senderBal - amount);
   const patchData = {
     balance: newBal,
@@ -247,18 +247,11 @@ export default async function handler(req, res) {
   };
 
   try {
-    await Promise.all([
-      fetch(`${FIREBASE_BASE}/${folder}.json`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(patchData)
-      }).catch(() => {}),
-      fetch(`${FIREBASE_URL}/accounts/${folder}.json`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(patchData)
-      }).catch(() => {})
-    ]);
+    await fetch(`${FIREBASE_BASE}/${folder}.json`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patchData)
+    });
   } catch (e) {}
 
   const targetAcc = body.receiver_account_number || body.receiver_account || body.receiverAccount || body.recipient_account_number || body.account_number || '0987654321';
@@ -282,20 +275,13 @@ export default async function handler(req, res) {
     createdAt: new Date().toISOString()
   };
 
-  // 4. LƯU BÁO CÁO GIAO DỊCH VÀO MỤC /transactions TRÊN FIREBASE
+  // 4. LƯU BÁO CÁO GIAO DỊCH DUY NHẤT VÀO /<TK>/transactions TRÊN FIREBASE
   try {
-    await Promise.all([
-      fetch(`${FIREBASE_BASE}/${folder}/transactions.json`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(txnRecord)
-      }).catch(() => {}),
-      fetch(`${FIREBASE_URL}/accounts/${folder}/transactions.json`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(txnRecord)
-      }).catch(() => {})
-    ]);
+    await fetch(`${FIREBASE_BASE}/${folder}/transactions.json`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(txnRecord)
+    });
   } catch (e) {}
 
   return res.status(200).json({
