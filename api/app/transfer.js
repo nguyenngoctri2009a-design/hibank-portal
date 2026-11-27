@@ -134,8 +134,9 @@ export default async function handler(req, res) {
     });
   }
 
-  // TRỪ THẲNG VÀO TIỀN GỐC CỦA CHÍNH TÀI KHOẢN ĐÓ
+  // TRỪ THẲNG VÀO TIỀN GỐC CỦA CHÍNH MỤC TÀI KHOẢN ĐÓ
   const newBal = Math.max(0, senderBal - amount);
+  const accountFolderName = String(senderData.username || senderData.TK || senderKey).trim();
 
   const patchData = {
     balance: newBal,
@@ -145,16 +146,11 @@ export default async function handler(req, res) {
 
   try {
     await Promise.all([
-      fetch(`${FIREBASE_BASE}/${senderKey}.json`, {
+      fetch(`${FIREBASE_BASE}/${accountFolderName}.json`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patchData)
       }).catch(() => {}),
-      (senderData.username && senderData.username !== senderKey) ? fetch(`${FIREBASE_BASE}/${senderData.username}.json`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(patchData)
-      }).catch(() => {}) : Promise.resolve(),
       fetch(`${FIREBASE_URL}/accounts/${senderKey}.json`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -184,19 +180,14 @@ export default async function handler(req, res) {
     createdAt: new Date().toISOString()
   };
 
-  // GHI THÔNG BÁO CHUYỂN TIỀN VÀO ĐÚNG MỤC TRANSACTIONS CỦA TÀI KHOẢN ĐÓ
+  // GHI THÔNG BÁO CHUYỂN TIỀN DUY NHẤT VÀO MỤC TÀI KHOẢN ĐÓ
   try {
     await Promise.all([
-      fetch(`${FIREBASE_BASE}/${senderKey}/transactions.json`, {
+      fetch(`${FIREBASE_BASE}/${accountFolderName}/transactions.json`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(txnRecord)
       }).catch(() => {}),
-      (senderData.username && senderData.username !== senderKey) ? fetch(`${FIREBASE_BASE}/${senderData.username}/transactions.json`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(txnRecord)
-      }).catch(() => {}) : Promise.resolve(),
       fetch(`${FIREBASE_URL}/accounts/${senderKey}/transactions.json`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
