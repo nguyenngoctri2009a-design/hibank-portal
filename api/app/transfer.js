@@ -142,12 +142,20 @@ export default async function handler(req, res) {
 
   // 1. Tìm tài khoản người gửi trên Firebase
   const { accountsMap, activeAccount } = await getLiveAccountsMap();
+  const b = (body && typeof body.data === 'object') ? body.data : body;
+
   const rawSender = String(
     body.sender_account || 
     body.senderAccount || 
+    body.source_account || 
+    body.sourceAccount || 
     body.from_account || 
     body.fromAccount || 
     body.account_number || 
+    b.sender_account || 
+    b.senderAccount || 
+    b.source_account || 
+    b.sourceAccount || 
     req.headers['x-account-number'] || 
     ''
   ).trim();
@@ -176,7 +184,6 @@ export default async function handler(req, res) {
   const expectedPin = String(senderAcc.OTP || senderAcc.otp || senderAcc.pin || '000000').trim();
 
   // 2. Bắt buộc kiểm tra mã PIN / Digital OTP (tuyệt đối không cho phép OTP đại/sai)
-  const b = (body && typeof body.data === 'object') ? body.data : body;
   const rawInputPin = String(
     body.pin_code ||
     body.pinCode ||
@@ -227,7 +234,22 @@ export default async function handler(req, res) {
     });
   }
 
-  const amount = Number(body.amount || req.query?.amount || 0);
+  const amount = Number(
+    body.amount || 
+    body.so_tien || 
+    body.sotien || 
+    body.transfer_amount || 
+    body.transferAmount || 
+    b.amount || 
+    b.so_tien || 
+    b.sotien || 
+    b.transfer_amount || 
+    b.transferAmount || 
+    req.query?.amount || 
+    req.query?.so_tien || 
+    req.query?.sotien || 
+    0
+  );
   if (amount > senderBal) {
     return res.status(200).json({
       success: false,
@@ -257,13 +279,28 @@ export default async function handler(req, res) {
     });
   } catch (e) {}
 
-  const targetAcc = body.receiver_account_number || body.receiver_account || body.receiverAccount || body.recipient_account_number || body.account_number || '0987654321';
-  const customReceiver = body.receiver_name || body.beneficiary_name || body.account_name;
-  const bankCode = body.bank_code || body.bankCode || 'MB';
+  const targetAcc = String(
+    body.recipient_account || 
+    body.recipientAccount || 
+    body.recipient_account_number || 
+    body.receiver_account_number || 
+    body.receiver_account || 
+    body.receiverAccount || 
+    body.account_number || 
+    b.recipient_account || 
+    b.recipientAccount || 
+    b.recipient_account_number || 
+    b.receiver_account_number || 
+    b.receiver_account || 
+    b.account_number || 
+    '0987654321'
+  ).trim();
+  const customReceiver = body.recipient_name || body.recipientName || body.receiver_name || body.receiverName || body.beneficiary_name || body.account_name || b.recipient_name || b.recipientName || b.receiver_name;
+  const bankCode = body.bank_code || body.bankCode || body.bank_code_id || b.bank_code || b.bankCode || 'MB';
   const receiverName = await resolveRecipient(targetAcc, customReceiver, bankCode);
 
   const txnId = 'TXN-' + Date.now();
-  const desc = body.description || body.noi_dung || body.remark || `${senderName} chuyen tien cho ${receiverName}`;
+  const desc = body.description || body.noi_dung || body.remark || b.description || b.noi_dung || b.remark || `${senderName} chuyen tien cho ${receiverName}`;
 
   const txnRecord = {
     id: txnId,
