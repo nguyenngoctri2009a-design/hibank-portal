@@ -28,15 +28,11 @@ export default async function handler(req, res) {
   const root = await getLiveRoot();
   const activeKey = root.active_account ? String(root.active_account).replace(/\D/g, '') : (root.accountNumber || '1800123123');
   const allAccounts = root.accounts || {};
-  const acc = allAccounts[activeKey] || {
-    accountNumber: activeKey,
-    customerName: root.customerName || 'NGUYEN NGOC TRI',
-    balance: typeof root.balance === 'number' ? root.balance : 0
-  };
+  const acc = allAccounts[activeKey] || (Object.keys(allAccounts).length > 0 ? allAccounts[Object.keys(allAccounts)[0]] : null) || {};
 
-  const num = acc.accountNumber || activeKey;
-  const name = acc.customerName || acc.accountName || root.customerName || 'NGUYEN NGOC TRI';
-  const bal = typeof root.balance === 'number' ? root.balance : (typeof acc.balance === 'number' ? acc.balance : 0);
+  const num = acc.accountNumber || root.accountNumber || activeKey;
+  const name = String(acc.customerName || acc.accountName || root.customerName || root.accountName || 'NGUYEN NGOC TRI').trim().toUpperCase();
+  const bal = typeof acc.balance === 'number' ? acc.balance : (typeof root.balance === 'number' ? root.balance : 200000);
 
   const payload = {
     success: true,

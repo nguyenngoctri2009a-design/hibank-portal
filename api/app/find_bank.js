@@ -49,17 +49,18 @@ async function lookupFirebaseRecipient(clean, bankCode) {
 
 async function getOwnerInfo() {
   try {
-    const res = await fetch(`${FIREBASE_URL}.json`, { headers: { 'Connection': 'keep-alive' } });
+    const res = await fetch(`${FIREBASE_URL}.json?ts=${Date.now()}`, { cache: 'no-store' });
     if (res.ok) {
       const root = await res.json();
       if (root) {
-        const ownerAcc = String(root.active_account || root.accountNumber || '1234567890').replace(/\D/g, '');
-        const ownerName = (root.customerName || root.accountName || 'NGUYEN NGOC TRI').trim().toUpperCase();
+        const ownerAcc = String(root.active_account || root.accountNumber || '1800123123').replace(/\D/g, '');
+        const currentActive = (root.accounts && root.accounts[ownerAcc]) ? root.accounts[ownerAcc] : null;
+        const ownerName = String(currentActive?.customerName || currentActive?.accountName || root.customerName || root.accountName || 'NGUYEN NGOC TRI').trim().toUpperCase();
         return { ownerAcc, ownerName };
       }
     }
   } catch (e) {}
-  return { ownerAcc: '1234567890', ownerName: 'NGUYEN NGOC TRI' };
+  return { ownerAcc: '1800123123', ownerName: 'NGUYEN NGOC TRI' };
 }
 
 export default async function handler(req, res) {

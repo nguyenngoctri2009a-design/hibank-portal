@@ -1,47 +1,16 @@
 const FIREBASE_URL = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/mbbank';
 
-async function getActiveAccount() {
+async function getLiveRootData() {
   try {
-    const res = await fetch(`${FIREBASE_URL}/active_account.json?ts=${Date.now()}`, { cache: 'no-store' });
+    const res = await fetch(`${FIREBASE_URL}.json?ts=${Date.now()}`, { cache: 'no-store' });
     if (res.ok) {
-      const val = await res.json();
-      if (val) return String(val).replace(/\D/g, '');
+      return (await res.json()) || {};
     }
   } catch (e) {}
-  return '1800123123';
+  return {};
 }
 
-async function getAccountData(accNum) {
-  try {
-    const res = await fetch(`${FIREBASE_URL}/accounts/${accNum}.json?ts=${Date.now()}`, { cache: 'no-store' });
-    if (res.ok) {
-      const val = await res.json();
-      if (val) return val;
-    }
-  } catch (e) {}
-  try {
-    const rRes = await fetch(`${FIREBASE_URL}.json?ts=${Date.now()}`, { cache: 'no-store' });
-    if (rRes.ok) {
-      const r = await rRes.json();
-      if (r) {
-        if (r.accounts && r.accounts[accNum]) return r.accounts[accNum];
-        return r;
-      }
-    }
-  } catch (e) {}
-  return {
-    accountNumber: accNum,
-    customerName: 'NGUYEN NGOC TRI',
-    balance: 0
-  };
-}
-
-async function getStoredTransactions(accNum, accData) {
-  const name = (accData.customerName || accData.accountName || 'NGUYEN NGOC TRI').toUpperCase();
-  const bal = typeof accData.balance === 'number' ? accData.balance : 0;
-  const createdAt = accData.updatedAt || new Date(Date.now() - 3600000).toISOString();
-
-  // Biến động số dư khởi tạo độc lập - chính xác số dư ban đầu của tài khoản này
+async function getStoredTransactions(accNum, name, bal, createdAt) {
   const initialTransaction = {
     id: `TXN-INIT-${accNum}`,
     accountNumber: accNum,
@@ -64,16 +33,15 @@ async function getStoredTransactions(accNum, accData) {
     account_name: name,
     fullName: name,
     full_name: name,
-    description: `Khoi tao so du ban dau: +${bal.toLocaleString('vi-VN')} VND`,
-    noi_dung: `Khoi tao so du ban dau: +${bal.toLocaleString('vi-VN')} VND`,
-    noidung: `Khoi tao so du ban dau: +${bal.toLocaleString('vi-VN')} VND`,
-    remark: `Khoi tao so du ban dau: +${bal.toLocaleString('vi-VN')} VND`,
+    description: `Khoi tao so du ban dau: +${Number(bal).toLocaleString('vi-VN')} VND`,
+    noi_dung: `Khoi tao so du ban dau: +${Number(bal).toLocaleString('vi-VN')} VND`,
+    noidung: `Khoi tao so du ban dau: +${Number(bal).toLocaleString('vi-VN')} VND`,
+    remark: `Khoi tao so du ban dau: +${Number(bal).toLocaleString('vi-VN')} VND`,
     created_at: createdAt,
     createdAt: createdAt
   };
 
   try {
-    // CHỈ ĐỌC DUY NHẤT NODE CỦA TÀI KHOẢN NÀY - TUYỆT ĐỐI KHÔNG ĐỌC TÀI KHOẢN KHÁC
     const accTxRes = await fetch(`${FIREBASE_URL}/accounts/${accNum}/transactions.json?ts=${Date.now()}`, { cache: 'no-store' });
     let data = null;
     if (accTxRes.ok) {
@@ -83,7 +51,7 @@ async function getStoredTransactions(accNum, accData) {
     if (data && typeof data === 'object') {
       const customList = Object.values(data)
         .filter(t => t && String(t.accountNumber || '').replace(/\D/g, '') === String(accNum).replace(/\D/g, ''))
-        .filter(t => t.type === 'IN') // Chỉ trả về giao dịch nhận/nạp tiền (IN). Giao dịch chuyển tiền (OUT) App MB đã tự lưu và hiển thị cục bộ qua .mb_tx_history_vault.json, tránh bị nhân đôi!
+        .filter(t => t.type === 'IN') // Chỉ trả về các giao dịch nhận/nạp tiền
         .map(t => ({
           id: t.id,
           accountNumber: accNum,
@@ -135,24 +103,40 @@ export default async function handler(req, res) {
     return res.status(204).end();
   }
 
-  const activeAcc = await getActiveAccount();
-  const requestedAcc = req.query?.account_number || req.query?.accountNumber || req.query?.stk || req.headers['x-account-number'] || activeAcc;
-  const accNum = String(requestedAcc).replace(/\D/g, '') || activeAcc;
+  const root = await getLiveRootData();
+  const allAccounts = root.accounts || {};
 
-  const accData = await getAccountData(accNum);
-  const list = await getStoredTransactions(accNum, accData);
+  // NGUỒN CHUẨN TỪ WEB
+  const masterKey = root.active_account 
+    ? String(root.active_account).replace(/\D/g, '') 
+    : (root.accountNumber ? String(root.accountNumber).replace(/\D/g, '') : '1800123123');
+
+  const requestedRaw = req.query?.account_number || req.query?.accountNumber || req.query?.stk || req.headers['x-account-number'];
+  const requested = requestedRaw ? String(requestedRaw).replace(/\D/g, '') : null;
+
+  // NẾU TÀI KHOẢN YÊU CẦU KHÔNG CÓ TRÊN HỆ THỐNG, LUÔN DÙNG MASTER TÀI KHOẢN WEB!
+  const accNum = (requested && allAccounts[requested]) ? requested : masterKey;
+  const accData = allAccounts[accNum] || {};
+
+  const name = String(accData.customerName || accData.accountName || root.customerName || root.accountName || 'NGUYEN NGOC TRI').trim().toUpperCase();
+  const bal = typeof accData.balance === 'number' 
+    ? accData.balance 
+    : (typeof root.balance === 'number' ? root.balance : 200000);
+  const createdAt = accData.updatedAt || root.updatedAt || new Date().toISOString();
+
+  const list = await getStoredTransactions(accNum, name, bal, createdAt);
 
   return res.status(200).json({
     success: true,
     code: 0,
     status: 'success',
     accountNumber: accNum,
-    balance: accData.balance || 0,
+    balance: bal,
     transactions: list,
     data: list,
     account_number: accNum,
-    account_name: accData.customerName || 'NGUYEN NGOC TRI',
-    customer_name: accData.customerName || 'NGUYEN NGOC TRI',
+    account_name: name,
+    customer_name: name,
     total: list.length,
     page: 1,
     limit: 20

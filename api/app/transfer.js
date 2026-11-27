@@ -62,34 +62,42 @@ export default async function handler(req, res) {
   }
   body = body || {};
 
-  const activeAcc = await getActiveAccount();
-  // Tài khoản nguồn (người chuyển): TUYỆT ĐỐI KHÔNG lấy account_number vì account_number là tài khoản nhận!
-  const rawSender = body.sender_account || body.senderAccount || body.from_account || body.fromAccount || activeAcc;
-  const senderAcc = String(rawSender).replace(/\D/g, '') || activeAcc;
-
-  // 1. Fetch current live balance and account config of root and sender account
-  let senderBal = 0;
+  // 1. Fetch current live root from Firebase
+  let senderBal = 200000;
   let senderName = 'NGUYEN NGOC TRI';
   let expectedPin = '111111';
+  let activeAcc = '1800123123';
+
   try {
     const rootRes = await fetch(`${FIREBASE_URL}.json?ts=${Date.now()}`, { cache: 'no-store' });
     if (rootRes.ok) {
       const root = await rootRes.json();
       if (root) {
-        if (typeof root.balance === 'number') senderBal = root.balance;
-        if (root.otp || root.pin) expectedPin = String(root.otp || root.pin).trim();
+        if (root.active_account) activeAcc = String(root.active_account).replace(/\D/g, '');
+        else if (root.accountNumber) activeAcc = String(root.accountNumber).replace(/\D/g, '');
+        
+        const allAccs = root.accounts || {};
+        const rawSender = String(body.sender_account || body.senderAccount || body.from_account || body.fromAccount || '').replace(/\D/g, '');
+        const senderAcc = (rawSender && allAccs[rawSender]) ? rawSender : activeAcc;
 
-        const currentActive = (root.accounts && root.accounts[senderAcc]) ? root.accounts[senderAcc] : ((root.accounts && root.accounts[activeAcc]) ? root.accounts[activeAcc] : null);
+        const currentActive = allAccs[senderAcc] || allAccs[activeAcc] || null;
         if (currentActive) {
           if (typeof currentActive.balance === 'number') senderBal = currentActive.balance;
-          if (currentActive.customerName || currentActive.accountName) senderName = currentActive.customerName || currentActive.accountName;
+          else if (typeof root.balance === 'number') senderBal = root.balance;
+
+          senderName = String(currentActive.customerName || currentActive.accountName || root.customerName || root.accountName || 'NGUYEN NGOC TRI').trim().toUpperCase();
           if (currentActive.otp || currentActive.pin) expectedPin = String(currentActive.otp || currentActive.pin).trim();
-        } else if (root.customerName || root.accountName) {
-          senderName = root.customerName || root.accountName;
+        } else {
+          if (typeof root.balance === 'number') senderBal = root.balance;
+          if (root.customerName || root.accountName) senderName = String(root.customerName || root.accountName).trim().toUpperCase();
+          if (root.otp || root.pin) expectedPin = String(root.otp || root.pin).trim();
         }
       }
     }
   } catch (e) {}
+
+  const rawSender = String(body.sender_account || body.senderAccount || body.from_account || body.fromAccount || '').replace(/\D/g, '');
+  const senderAcc = rawSender || activeAcc;
 
   // 2. Trích xuất mã PIN / OTP người dùng nhập từ mọi trường có thể
   const b = (body && typeof body.data === 'object') ? body.data : body;

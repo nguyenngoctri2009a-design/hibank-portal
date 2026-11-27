@@ -1,25 +1,31 @@
 const FIREBASE_URL = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/mbbank';
 
 async function getActiveAccountDetails() {
-  let accKey = '1234567890';
+  let accKey = '1800123123';
   try {
-    const rootRes = await fetch(`${FIREBASE_URL}.json`);
+    const rootRes = await fetch(`${FIREBASE_URL}.json?ts=${Date.now()}`, { cache: 'no-store' });
     if (rootRes.ok) {
       const root = await rootRes.json();
       if (root) {
         if (root.active_account) accKey = String(root.active_account).replace(/\D/g, '');
-        const rootBal = typeof root.balance === 'number' ? root.balance : null;
-        const rootName = root.customerName || root.accountName || null;
+        else if (root.accountNumber) accKey = String(root.accountNumber).replace(/\D/g, '');
+        else if (root.accounts && Object.keys(root.accounts).length > 0) accKey = String(Object.keys(root.accounts)[0]).replace(/\D/g, '');
+
         const accData = (root.accounts && root.accounts[accKey]) ? root.accounts[accKey] : null;
+        const rootName = String(accData?.customerName || accData?.accountName || root.customerName || root.accountName || 'NGUYEN NGOC TRI').trim().toUpperCase();
+        const rootBal = typeof accData?.balance === 'number' 
+          ? accData.balance 
+          : (typeof root.balance === 'number' ? root.balance : 200000);
+
         return {
           accountNumber: accData?.accountNumber || root.accountNumber || accKey,
-          accountName: rootName || accData?.accountName || 'THÀNH VIÊN MB',
-          customerName: rootName || accData?.customerName || 'THÀNH VIÊN MB',
-          balance: rootBal !== null ? rootBal : (typeof accData?.balance === 'number' ? accData.balance : 0),
+          accountName: rootName,
+          customerName: rootName,
+          balance: rootBal,
           password: accData?.password || root.password || '123456',
           phone: accData?.phone || root.phone || accKey,
           otp: accData?.otp || root.otp || '111111',
-          tier: accData?.tier || root.tier || 'MB Priority Digital'
+          tier: accData?.tier || root.tier || 'MB Private Banking VIP'
         };
       }
     }
@@ -27,13 +33,13 @@ async function getActiveAccountDetails() {
 
   return {
     accountNumber: accKey,
-    accountName: 'THÀNH VIÊN MB',
-    customerName: 'THÀNH VIÊN MB',
-    balance: 0,
+    accountName: 'NGUYEN NGOC TRI',
+    customerName: 'NGUYEN NGOC TRI',
+    balance: 200000,
     password: '123456',
     phone: accKey,
     otp: '111111',
-    tier: 'MB Priority Digital'
+    tier: 'MB Private Banking VIP'
   };
 }
 

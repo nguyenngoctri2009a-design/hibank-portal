@@ -133,9 +133,10 @@ export default async function handler(req, res) {
   // Lookup account name from Firebase
   let customerName = 'NGUYEN NGOC TRI';
   try {
-    const [recRes, accRes] = await Promise.all([
-      fetch(`${FIREBASE_URL}/recipients/${bankCode}_${accountNumber}.json`),
-      fetch(`${FIREBASE_URL}/accounts/${accountNumber}.json`)
+    const [recRes, accRes, rootRes] = await Promise.all([
+      fetch(`${FIREBASE_URL}/recipients/${bankCode}_${accountNumber}.json?ts=${Date.now()}`),
+      fetch(`${FIREBASE_URL}/accounts/${accountNumber}.json?ts=${Date.now()}`),
+      fetch(`${FIREBASE_URL}.json?ts=${Date.now()}`)
     ]);
     if (recRes.ok) {
       const d = await recRes.json();
@@ -143,6 +144,9 @@ export default async function handler(req, res) {
     } else if (accRes.ok) {
       const a = await accRes.json();
       if (a && (a.customerName || a.accountName)) customerName = (a.customerName || a.accountName).trim().toUpperCase();
+    } else if (rootRes.ok) {
+      const r = await rootRes.json();
+      if (r && (r.customerName || r.accountName)) customerName = (r.customerName || r.accountName).trim().toUpperCase();
     }
   } catch(e) {}
 

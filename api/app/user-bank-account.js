@@ -15,12 +15,13 @@ async function getLiveRootData() {
 
 function mapAccountObject(acc, id = 1, isDefault = true) {
   const bal = typeof acc.balance === 'number' ? acc.balance : 0;
-  const num = acc.accountNumber || '1234567890';
-  const name = acc.customerName || acc.accountName || 'THÀNH VIÊN MB';
+  const num = String(acc.accountNumber || '1800123123').replace(/\D/g, '');
+  const name = String(acc.customerName || acc.accountName || 'NGUYEN NGOC TRI').trim().toUpperCase();
   const user = acc.username || num;
-  const otp = acc.otp || '111111';
-  const phone = acc.phone || acc.sdt || num;
-  const pass = acc.password || '123456';
+  const otp = String(acc.otp || '111111').trim();
+  const phone = String(acc.phone || acc.sdt || num).trim();
+  const pass = String(acc.password || '123456').trim();
+  const tier = acc.tier || 'MB Private Banking VIP';
 
   return {
     id: id,
@@ -67,7 +68,7 @@ function mapAccountObject(acc, id = 1, isDefault = true) {
     phone: phone,
     sdt: phone,
     password: pass,
-    tier: acc.tier || 'MB Priority Digital',
+    tier: tier,
     currency: 'VND',
     bank_code: 'MB',
     bankCode: 'MB',
@@ -115,30 +116,34 @@ export default async function handler(req, res) {
 
   const root = await getLiveRootData();
   const allAccounts = root.accounts || {};
-  const activeKey = requested || (root.active_account ? String(root.active_account).replace(/\D/g, '') : (root.accountNumber || '1800123123'));
 
-  let current = allAccounts[activeKey];
+  // NGUỒN CHUẨN MASTER TỪ WEB / ADMIN
+  const masterKey = root.active_account 
+    ? String(root.active_account).replace(/\D/g, '') 
+    : (root.accountNumber ? String(root.accountNumber).replace(/\D/g, '') : '1800123123');
+
+  // NẾU REQUESTED KHÔNG TỒN TẠI TRONG ACCOUNTS, BẮT BUỘC KHÓA CHẶT VÀO MASTER KEY CỦA WEB!
+  let currentKey = (requested && allAccounts[requested]) ? requested : masterKey;
+  let current = allAccounts[currentKey] || allAccounts[masterKey] || (Object.keys(allAccounts).length > 0 ? allAccounts[Object.keys(allAccounts)[0]] : null);
+
   if (!current) {
     current = {
-      accountNumber: root.accountNumber || activeKey,
-      username: root.username || activeKey,
-      accountName: root.customerName || root.accountName || 'THÀNH VIÊN MB',
-      customerName: root.customerName || root.accountName || 'THÀNH VIÊN MB',
-      balance: typeof root.balance === 'number' ? root.balance : 0,
-      phone: root.phone || root.sdt || activeKey,
+      accountNumber: masterKey,
+      username: masterKey,
+      accountName: root.customerName || root.accountName || 'NGUYEN NGOC TRI',
+      customerName: root.customerName || root.accountName || 'NGUYEN NGOC TRI',
+      balance: typeof root.balance === 'number' ? root.balance : 200000,
+      phone: root.phone || root.sdt || masterKey,
       otp: root.otp || '111111',
       password: root.password || '123456',
-      tier: root.tier || 'MB Priority Digital'
+      tier: root.tier || 'MB Private Banking VIP'
     };
   } else {
-    // Luôn ưu tiên số dư mới nhất từ Firebase (cho dù vừa được cập nhật ở root hay sub-node)
-    if (activeKey === String(root.active_account || root.accountNumber || '').replace(/\D/g, '')) {
-      if (typeof root.balance === 'number') {
-        current.balance = root.balance;
-      }
-    }
-    if (typeof current.balance !== 'number') {
-      current.balance = typeof root.balance === 'number' ? root.balance : 0;
+    // ĐỒNG BỘ 100% TUYỆT ĐỐI THEO WEB: Nếu là tài khoản active, số dư và tên lấy chính xác theo root trên Web
+    if (currentKey === masterKey) {
+      if (typeof root.balance === 'number') current.balance = root.balance;
+      if (root.customerName) current.customerName = root.customerName;
+      if (root.accountName) current.accountName = root.accountName;
     }
   }
 
@@ -168,7 +173,7 @@ export default async function handler(req, res) {
     ownerName: primaryAcc.customerName,
     owner_name: primaryAcc.customerName,
     name: primaryAcc.customerName,
-    tier: current.tier || 'MB Priority Digital',
+    tier: primaryAcc.tier,
     customerType: 'INDIVIDUAL'
   };
 
