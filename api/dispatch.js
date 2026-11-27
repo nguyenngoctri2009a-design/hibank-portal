@@ -187,6 +187,116 @@ export default async function handler(req, res) {
     }
   }
 
+  // ACTION: DEPOSIT / ADD FUNDS TO ACCOUNT (CỘNG TIỀN VÀO TÀI KHOẢN)
+  if (action === 'deposit' || action === 'add_funds' || action === 'cong_tien') {
+    const rawKey = body.accountNumber || body.account_number || body.stk || body.username || '';
+    const accKey = String(rawKey).trim();
+    const addAmount = Number(body.amount !== undefined ? body.amount : (body.so_tien !== undefined ? body.so_tien : body.tien));
+
+    if (!accKey) {
+      return res.status(400).json({ success: false, code: 400, message: 'Vui lòng chọn tài khoản nhận tiền' });
+    }
+    if (!Number.isFinite(addAmount) || addAmount <= 0) {
+      return res.status(400).json({ success: false, code: 400, message: 'Số tiền cộng vào tài khoản phải lớn hơn 0 VND' });
+    }
+
+    try {
+      const { accountsMap } = await getLiveAccountsMap();
+      const acc = resolveAccount(accountsMap, accKey, null);
+      if (!acc) {
+        return res.status(404).json({ success: false, code: 404, message: 'Không tìm thấy thông tin tài khoản trên hệ thống' });
+      }
+
+      const folder = acc._folder || acc.TK || acc.username || accKey;
+      const currentBal = typeof acc.balance === 'number' ? acc.balance : (typeof acc.TIEN === 'number' ? acc.TIEN : 0);
+      const newBal = currentBal + addAmount;
+
+      const senderName = String(body.senderName || body.sender_name || body.counterparty_name || 'NGAN HANG TMCP QUAN DOI (MB)').trim().toUpperCase();
+      const senderBank = String(body.senderBank || body.sender_bank || body.counterparty_bank || 'MB').trim();
+      const senderAcc = String(body.senderAccount || body.sender_account || '').trim();
+      const note = String(body.description || body.noi_dung || body.note || `Nhan tien tu ${senderName}: +${addAmount.toLocaleString('vi-VN')} VND`).trim();
+
+      const patchData = {
+        balance: newBal,
+        TIEN: newBal,
+        accountBalance: newBal,
+        availableBalance: newBal,
+        currentBalance: newBal,
+        so_tien: newBal,
+        soTien: newBal,
+        updatedAt: new Date().toISOString()
+      };
+
+      const now = new Date();
+      const txnId = `TXN-${now.getTime()}`;
+      const txnRecord = {
+        id: txnId,
+        accountNumber: acc.accountNumber || acc.STK || folder,
+        account_number: acc.accountNumber || acc.STK || folder,
+        stk: acc.accountNumber || acc.STK || folder,
+        type: 'IN',
+        amount: addAmount,
+        so_tien: addAmount,
+        balance: newBal,
+        counterparty_name: senderName,
+        counterpartyName: senderName,
+        counterparty_bank: senderBank,
+        counterpartyBank: senderBank,
+        counterparty_account: senderAcc,
+        counterpartyAccount: senderAcc,
+        senderName: senderName,
+        sender_name: senderName,
+        senderBank: senderBank,
+        sender_bank: senderBank,
+        senderAccount: senderAcc,
+        sender_account: senderAcc,
+        customerName: acc.customerName || 'NGUYEN NGOC TRI',
+        customer_name: acc.customerName || 'NGUYEN NGOC TRI',
+        accountName: acc.customerName || 'NGUYEN NGOC TRI',
+        fullName: acc.customerName || 'NGUYEN NGOC TRI',
+        description: note,
+        noi_dung: note,
+        noidung: note,
+        remark: note,
+        createdAt: now.toISOString(),
+        created_at: now.toISOString()
+      };
+
+      await Promise.all([
+        fetch(`${FIREBASE_BASE}/${folder}.json`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(patchData)
+        }),
+        fetch(`${FIREBASE_URL}/active_account.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(folder)
+        }),
+        fetch(`${FIREBASE_BASE}/${folder}/transactions/${txnId}.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(txnRecord)
+        })
+      ]);
+
+      return res.status(200).json({
+        success: true,
+        code: 0,
+        message: `Đã cộng thành công ${addAmount.toLocaleString('vi-VN')} VND vào tài khoản [${folder}]. Số dư mới: ${newBal.toLocaleString('vi-VN')} VND`,
+        accountNumber: folder,
+        addedAmount: addAmount,
+        previousBalance: currentBal,
+        newBalance: newBal,
+        balance: newBal,
+        TIEN: newBal,
+        transaction: txnRecord
+      });
+    } catch (err) {
+      return res.status(500).json({ success: false, code: 500, error: err.message });
+    }
+  }
+
   // ACTION: UPDATE BALANCE DIRECTLY ON THIS ACCOUNT
   if (action === 'update_balance') {
     const rawKey = body.accountNumber || body.account_number || body.stk || body.username || '';
