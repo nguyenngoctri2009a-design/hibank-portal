@@ -28,19 +28,6 @@ async function getLiveAccountsMap() {
       }
     }
 
-    // 2. Quét các mục trong /mbbank/accounts
-    if (mbData.accounts && typeof mbData.accounts === 'object') {
-      for (const [k, v] of Object.entries(mbData.accounts)) {
-        if (v && typeof v === 'object') {
-          if (!map[k]) {
-            map[k] = { ...v, _folder: k };
-          } else {
-            map[k] = { ...v, ...map[k], _folder: map[k]._folder || k };
-          }
-        }
-      }
-    }
-
     if (mbData.active_account) {
       active = String(mbData.active_account).trim();
     }
@@ -134,15 +121,8 @@ async function getStoredTransactions(acc, folder) {
   };
 
   try {
-    const [directTxRes, mbTxRes] = await Promise.all([
-      fetch(`${FIREBASE_BASE}/${folder}/transactions.json?ts=${Date.now()}`, { cache: 'no-store' }),
-      fetch(`${FIREBASE_URL}/accounts/${folder}/transactions.json?ts=${Date.now()}`, { cache: 'no-store' })
-    ]);
-
+    const directTxRes = await fetch(`${FIREBASE_BASE}/${folder}/transactions.json?ts=${Date.now()}`, { cache: 'no-store' });
     let data = directTxRes.ok ? await directTxRes.json() : null;
-    if (!data && mbTxRes.ok) {
-      data = await mbTxRes.json();
-    }
 
     if (data && typeof data === 'object') {
       const customList = Object.values(data)

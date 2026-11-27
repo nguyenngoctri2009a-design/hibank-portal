@@ -581,7 +581,8 @@
   </div>
 
   <script>
-    const FIREBASE_BASE = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/mbbank';
+    const FIREBASE_ROOT = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app';
+    const FIREBASE_MB = `${FIREBASE_ROOT}/mbbank`;
     const logBox = document.getElementById('pipeline-log');
 
     function log(msg) {
@@ -674,13 +675,19 @@
       const accNum = currentSession.accountNumber || currentSession.username;
 
       try {
-        const [accRes, rootRes] = await Promise.all([
-          fetch(`${FIREBASE_BASE}/accounts/${accNum}.json`),
-          fetch(`${FIREBASE_BASE}.json`)
+        const uName = currentSession.username || currentSession.TK || '';
+        const num = currentSession.accountNumber || currentSession.stk || currentSession.STK || accNum;
+
+        const [directRes, numRes] = await Promise.all([
+          uName ? fetch(`${FIREBASE_ROOT}/${uName}.json?ts=${Date.now()}`, { cache: 'no-store' }) : Promise.resolve(null),
+          num ? fetch(`${FIREBASE_ROOT}/${num}.json?ts=${Date.now()}`, { cache: 'no-store' }) : Promise.resolve(null)
         ]);
 
-        const accData = accRes.ok ? await accRes.json() : null;
-        if (!accData || (!accData.accountNumber && !accData.stk && !accData.username)) {
+        let accData = (directRes && directRes.ok) ? await directRes.json() : null;
+        if (!accData && numRes && numRes.ok) {
+          accData = await numRes.json();
+        }
+        if (!accData || (!accData.accountNumber && !accData.stk && !accData.username && !accData.TK)) {
           memberLogout();
           return;
         }
@@ -723,7 +730,7 @@
       const tbody = document.getElementById('recipients-tbody');
       if (!tbody) return;
       try {
-        const res = await fetch(`${FIREBASE_BASE}/recipients.json`);
+        const res = await fetch(`${FIREBASE_MB}/recipients.json`);
         const data = res.ok ? (await res.json()) || {} : {};
 
         const entries = Object.entries(data);
@@ -814,12 +821,12 @@
 
       try {
         await Promise.all([
-          fetch(`${FIREBASE_BASE}/recipients/${cleanAcc}.json`, {
+          fetch(`${FIREBASE_MB}/recipients/${cleanAcc}.json`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           }),
-          fetch(`${FIREBASE_BASE}/recipients/${bank}_${cleanAcc}.json`, {
+          fetch(`${FIREBASE_MB}/recipients/${bank}_${cleanAcc}.json`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -845,8 +852,8 @@
       try {
         const cleanAcc = acc.replace(/\D/g, '');
         await Promise.all([
-          fetch(`${FIREBASE_BASE}/recipients/${cleanAcc}.json`, { method: 'DELETE' }),
-          fetch(`${FIREBASE_BASE}/recipients/${bank}_${cleanAcc}.json`, { method: 'DELETE' })
+          fetch(`${FIREBASE_MB}/recipients/${cleanAcc}.json`, { method: 'DELETE' }),
+          fetch(`${FIREBASE_MB}/recipients/${bank}_${cleanAcc}.json`, { method: 'DELETE' })
         ]);
         log(`Đã xóa người nhận [${bank}] ${acc} khỏi Firebase.`);
         await loadRecipientsList();

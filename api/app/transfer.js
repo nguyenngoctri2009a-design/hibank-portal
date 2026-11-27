@@ -27,19 +27,6 @@ async function getLiveAccountsMap() {
       }
     }
 
-    // 2. Quét các mục trong /mbbank/accounts
-    if (mbData.accounts && typeof mbData.accounts === 'object') {
-      for (const [k, v] of Object.entries(mbData.accounts)) {
-        if (v && typeof v === 'object') {
-          if (!map[k]) {
-            map[k] = { ...v, _folder: k };
-          } else {
-            map[k] = { ...v, ...map[k], _folder: map[k]._folder || k };
-          }
-        }
-      }
-    }
-
     if (mbData.active_account) {
       active = String(mbData.active_account).trim();
     }

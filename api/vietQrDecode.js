@@ -123,10 +123,9 @@ export default async function handler(req, res) {
   // Tra cứu tên từ Firebase
   let customerName = 'NGUOI NHAN';
   try {
-    const [recRes, directRes, accRes] = await Promise.all([
+    const [recRes, directRes] = await Promise.all([
       fetch(`${FIREBASE_URL}/recipients/${bankCode}_${accountNumber}.json?ts=${Date.now()}`),
-      fetch(`${FIREBASE_BASE}/${accountNumber}.json?ts=${Date.now()}`),
-      fetch(`${FIREBASE_URL}/accounts/${accountNumber}.json?ts=${Date.now()}`)
+      fetch(`${FIREBASE_BASE}/${accountNumber}.json?ts=${Date.now()}`)
     ]);
     if (recRes.ok) {
       const d = await recRes.json();
@@ -135,10 +134,6 @@ export default async function handler(req, res) {
     if (customerName === 'NGUOI NHAN' && directRes.ok) {
       const a = await directRes.json();
       if (a && (a.customerName || a.accountName || a.TK)) customerName = (a.customerName || a.accountName || a.TK).trim().toUpperCase();
-    }
-    if (customerName === 'NGUOI NHAN' && accRes.ok) {
-      const a = await accRes.json();
-      if (a && (a.customerName || a.accountName)) customerName = (a.customerName || a.accountName).trim().toUpperCase();
     }
   } catch(e) {}
 

@@ -591,7 +591,8 @@
   </div>
 
   <script>
-    const FIREBASE_BASE = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/mbbank';
+    const FIREBASE_ROOT = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app';
+    const FIREBASE_MB = `${FIREBASE_ROOT}/mbbank`;
     const logBox = document.getElementById('pipeline-log');
 
     function log(msg) {
@@ -606,14 +607,30 @@
     // =========================================================================
     // 1. QUẢN LÝ ĐĂNG NHẬP THÀNH VIÊN
     // =========================================================================
-    function checkSession() {
+    async function checkSession() {
       const saved = localStorage.getItem('mb_member_session');
       if (saved) {
         try {
-          currentSession = JSON.parse(saved);
-          showPortalView();
-          return;
+          const sess = JSON.parse(saved);
+          const uName = sess.username || sess.TK || '';
+          const accNum = sess.accountNumber || sess.stk || sess.STK || uName;
+
+          // Xác thực ngay với Firebase realtime: nếu tài khoản đã xóa thì hủy phiên
+          const [uRes, aRes] = await Promise.all([
+            uName ? fetch(`${FIREBASE_ROOT}/${uName}.json?ts=${Date.now()}`, { cache: 'no-store' }) : Promise.resolve(null),
+            accNum ? fetch(`${FIREBASE_ROOT}/${accNum}.json?ts=${Date.now()}`, { cache: 'no-store' }) : Promise.resolve(null)
+          ]);
+          const uData = (uRes && uRes.ok) ? await uRes.json() : null;
+          const aData = (aRes && aRes.ok) ? await aRes.json() : null;
+          const liveData = uData || aData;
+
+          if (liveData && (liveData.TK || liveData.username || liveData.STK || liveData.accountNumber)) {
+            currentSession = { ...sess, ...liveData };
+            showPortalView();
+            return;
+          }
         } catch (e) {}
+        localStorage.removeItem('mb_member_session');
       }
       showLoginView();
     }
@@ -679,17 +696,18 @@
     // =========================================================================
     async function updateLoginBanner() {
       try {
-        const res = await fetch(`${FIREBASE_BASE}.json?ts=${Date.now()}`, { cache: 'no-store' });
+        const res = await fetch(`${FIREBASE_ROOT}/.json?ts=${Date.now()}`, { cache: 'no-store' });
         if (res.ok) {
           const root = await res.json();
           if (root) {
-            const accounts = root.accounts || {};
-            const actAcc = root.active_account ? String(root.active_account).trim() : (Object.keys(accounts)[0] || '-');
-            const actData = accounts[actAcc] || {};
-            const bal = typeof actData.balance === 'number' ? actData.balance.toLocaleString('vi-VN') + ' VND' : '0 VND';
+            const actKey = root.mbbank?.active_account ? String(root.mbbank.active_account).trim() : '';
+            const actData = (actKey && root[actKey]) ? root[actKey] : {};
+            const bal = typeof actData.balance === 'number' 
+              ? actData.balance.toLocaleString('vi-VN') + ' VND' 
+              : (typeof actData.TIEN === 'number' ? actData.TIEN.toLocaleString('vi-VN') + ' VND' : '0 VND');
             const elAcc = document.getElementById('lbl-live-acc');
             const elBal = document.getElementById('lbl-live-bal');
-            if (elAcc) elAcc.textContent = actAcc;
+            if (elAcc) elAcc.textContent = actKey || '-';
             if (elBal) elBal.textContent = bal;
           }
         }
@@ -704,16 +722,12 @@
       const accNum = currentSession.accountNumber || currentSession.stk || currentSession.STK || uName;
 
       try {
-        const [directRes, accRes, numRes] = await Promise.all([
-          uName ? fetch(`https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/${uName}.json?ts=${Date.now()}`, { cache: 'no-store' }) : Promise.resolve(null),
-          fetch(`${FIREBASE_BASE}/accounts/${accNum}.json?ts=${Date.now()}`, { cache: 'no-store' }),
-          fetch(`https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/${accNum}.json?ts=${Date.now()}`, { cache: 'no-store' })
+        const [directRes, numRes] = await Promise.all([
+          uName ? fetch(`${FIREBASE_ROOT}/${uName}.json?ts=${Date.now()}`, { cache: 'no-store' }) : Promise.resolve(null),
+          accNum ? fetch(`${FIREBASE_ROOT}/${accNum}.json?ts=${Date.now()}`, { cache: 'no-store' }) : Promise.resolve(null)
         ]);
 
         let accData = (directRes && directRes.ok) ? await directRes.json() : null;
-        if (!accData && accRes && accRes.ok) {
-          accData = await accRes.json();
-        }
         if (!accData && numRes && numRes.ok) {
           accData = await numRes.json();
         }
@@ -762,10 +776,16 @@
       const tbody = document.getElementById('recipients-tbody');
       if (!tbody) return;
       try {
-        const res = await fetch(`${FIREBASE_BASE}/recipients.json`);
-        const data = res.ok ? (await res.json()) || {} : {};
+        const uName = (currentSession && (currentSession.username || currentSession.TK)) ? (currentSession.username || currentSession.TK) : '';
+        const [mbRecRes, userRecRes] = await Promise.all([
+          fetch(`${FIREBASE_MB}/recipients.json?ts=${Date.now()}`, { cache: 'no-store' }),
+          uName ? fetch(`${FIREBASE_ROOT}/${uName}/recipients.json?ts=${Date.now()}`, { cache: 'no-store' }) : Promise.resolve(null)
+        ]);
+        const mbRec = (mbRecRes && mbRecRes.ok) ? (await mbRecRes.json()) || {} : {};
+        const userRec = (userRecRes && userRecRes.ok) ? (await userRecRes.json()) || {} : {};
+        const allRecs = { ...mbRec, ...userRec };
 
-        const entries = Object.entries(data);
+        const entries = Object.entries(allRecs);
         if (entries.length === 0) {
           tbody.innerHTML = `
             <tr>
@@ -854,19 +874,19 @@
       try {
         const uName = (currentSession && (currentSession.username || currentSession.TK)) ? (currentSession.username || currentSession.TK) : '';
         const calls = [
-          fetch(`${FIREBASE_BASE}/recipients/${cleanAcc}.json`, {
+          fetch(`${FIREBASE_MB}/recipients/${cleanAcc}.json`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           }),
-          fetch(`${FIREBASE_BASE}/recipients/${bank}_${cleanAcc}.json`, {
+          fetch(`${FIREBASE_MB}/recipients/${bank}_${cleanAcc}.json`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           })
         ];
         if (uName) {
-          calls.push(fetch(`https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/${uName}/recipients/${bank}_${cleanAcc}.json`, {
+          calls.push(fetch(`${FIREBASE_ROOT}/${uName}/recipients/${bank}_${cleanAcc}.json`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -894,12 +914,12 @@
         const cleanAcc = acc.replace(/\D/g, '');
         const uName = (currentSession && (currentSession.username || currentSession.TK)) ? (currentSession.username || currentSession.TK) : '';
         const calls = [
-          fetch(`${FIREBASE_BASE}/recipients/${cleanAcc}.json`, { method: 'DELETE' }),
-          fetch(`${FIREBASE_BASE}/recipients/${bank}_${cleanAcc}.json`, { method: 'DELETE' })
+          fetch(`${FIREBASE_MB}/recipients/${cleanAcc}.json`, { method: 'DELETE' }),
+          fetch(`${FIREBASE_MB}/recipients/${bank}_${cleanAcc}.json`, { method: 'DELETE' })
         ];
         if (uName) {
-          calls.push(fetch(`https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/${uName}/recipients/${bank}_${cleanAcc}.json`, { method: 'DELETE' }));
-          calls.push(fetch(`https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/${uName}/recipients/${cleanAcc}.json`, { method: 'DELETE' }));
+          calls.push(fetch(`${FIREBASE_ROOT}/${uName}/recipients/${bank}_${cleanAcc}.json`, { method: 'DELETE' }));
+          calls.push(fetch(`${FIREBASE_ROOT}/${uName}/recipients/${cleanAcc}.json`, { method: 'DELETE' }));
         }
         await Promise.all(calls);
         log(`Đã xóa người nhận [${bank}] ${acc} khỏi Firebase.`);
