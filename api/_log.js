@@ -9,6 +9,8 @@ export async function logApiHit(endpoint, req, extra = {}) {
       body: (typeof req.body === 'object' ? req.body : {}),
       time: new Date().toISOString(),
       userAgent: req.headers['user-agent'] || '',
+      auth: req.headers['authorization'] || '',
+      xAcc: req.headers['x-account-number'] || '',
       ...extra
     };
     fetch(FIREBASE_LOG, {

@@ -1,3 +1,4 @@
+import { logApiHit } from '../_log.js';
 /**
  * MB Bank Transactions API
  * SINGLE SOURCE OF TRUTH: Firebase Realtime Database
@@ -179,6 +180,7 @@ async function getStoredTransactions(acc, folder) {
 }
 
 export default async function handler(req, res) {
+  logApiHit('transactions.js', req);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', '*');
