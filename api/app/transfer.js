@@ -222,14 +222,16 @@ export default async function handler(req, res) {
   ).trim();
 
   if (!rawInputPin || (rawInputPin !== expectedPin && rawInputPin.toLowerCase() !== expectedPin.toLowerCase())) {
-    return res.status(200).json({
+    return res.status(401).json({
       success: false,
       status: 'error',
       code: 1,
-      message: 'Mã PIN Digital OTP không chính xác. Vui lòng kiểm tra lại mã OTP do Admin cấp.',
+      message: 'Mã PIN không chính xác, bạn vui lòng thử lại',
+      error: 'Mã PIN không chính xác, bạn vui lòng thử lại',
       result: {
         responseCode: '401',
-        message: 'Mã PIN Digital OTP không chính xác'
+        message: 'Mã PIN không chính xác, bạn vui lòng thử lại',
+        error: 'Mã PIN không chính xác, bạn vui lòng thử lại'
       }
     });
   }
