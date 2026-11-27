@@ -140,38 +140,67 @@ async function getStoredTransactions(acc, folder) {
     if (data && typeof data === 'object') {
       const customList = Object.values(data)
         .filter(t => t && typeof t === 'object')
-        .map(t => ({
-          id: t.id || `TXN-${Date.now()}`,
-          accountNumber: accNum,
-          account_number: accNum,
-          stk: accNum,
-          type: t.type || 'OUT',
-          amount: Number(t.amount || t.so_tien || 0),
-          balance: Number(t.balance !== undefined ? t.balance : bal),
-          so_tien: Number(t.amount || t.so_tien || 0),
-          counterparty_name: t.receiverName || t.counterparty_name || 'NGAN HANG TMCP QUAN DOI (MB)',
-          counterpartyName: t.receiverName || t.counterparty_name || 'NGAN HANG TMCP QUAN DOI (MB)',
-          counterparty_bank: t.bankCode || t.counterparty_bank || 'MB',
-          counterpartyBank: t.bankCode || t.counterparty_bank || 'MB',
-          senderName: t.senderName || name,
-          sender_name: t.senderName || name,
-          customerName: name,
-          customer_name: name,
-          custName: name,
-          accountName: name,
-          account_name: name,
-          fullName: name,
-          full_name: name,
-          description: t.description || t.noi_dung || `${name} chuyen tien`,
-          noi_dung: t.description || t.noi_dung || `${name} chuyen tien`,
-          noidung: t.description || t.noi_dung || `${name} chuyen tien`,
-          remark: t.description || t.noi_dung || `${name} chuyen tien`,
-          created_at: t.createdAt || t.created_at || new Date().toISOString(),
-          createdAt: t.createdAt || t.created_at || new Date().toISOString()
-        }));
+        .map(t => {
+          const tid = t.id || t.transaction_id || t.transactionId || t.trans_id || `TXN-${Date.now()}`;
+          const tType = (t.type || t.transaction_type || t.transactionType || 'OUT').toUpperCase();
+          const tAmt = Number(t.amount || t.so_tien || t.soTien || 0);
+          const tBal = Number(t.balance !== undefined ? t.balance : (t.new_balance !== undefined ? t.new_balance : bal));
+          const tDate = t.createdAt || t.created_at || t.transaction_date || t.transactionDate || new Date().toISOString();
+          const tDesc = t.description || t.noi_dung || t.noidung || t.remark || t.transaction_note || t.transactionNote || `${name} giao dich`;
+
+          return {
+            id: tid,
+            transaction_id: tid,
+            transactionId: tid,
+            trans_id: tid,
+            transactionCode: tid,
+            transaction_code: tid,
+            accountNumber: accNum,
+            account_number: accNum,
+            stk: accNum,
+            so_tai_khoan: accNum,
+            type: tType,
+            transaction_type: tType,
+            transactionType: tType,
+            amount: tAmt,
+            so_tien: tAmt,
+            soTien: tAmt,
+            balance: tBal,
+            new_balance: tBal,
+            account_balance: tBal,
+            accountBalance: tBal,
+            available_balance: tBal,
+            availableBalance: tBal,
+            current_balance: tBal,
+            currentBalance: tBal,
+            counterparty_name: t.receiverName || t.counterparty_name || t.counterpartyName || 'NGAN HANG TMCP QUAN DOI (MB)',
+            counterpartyName: t.receiverName || t.counterparty_name || t.counterpartyName || 'NGAN HANG TMCP QUAN DOI (MB)',
+            counterparty_bank: t.bankCode || t.counterparty_bank || t.counterpartyBank || 'MB',
+            counterpartyBank: t.bankCode || t.counterparty_bank || t.counterpartyBank || 'MB',
+            senderName: t.senderName || t.sender_name || name,
+            sender_name: t.senderName || t.sender_name || name,
+            customerName: name,
+            customer_name: name,
+            custName: name,
+            accountName: name,
+            account_name: name,
+            fullName: name,
+            full_name: name,
+            description: tDesc,
+            noi_dung: tDesc,
+            noidung: tDesc,
+            remark: tDesc,
+            transaction_note: tDesc,
+            transactionNote: tDesc,
+            created_at: tDate,
+            createdAt: tDate,
+            transaction_date: tDate,
+            transactionDate: tDate
+          };
+        });
 
       if (customList.length > 0) {
-        const sorted = customList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        const sorted = customList.sort((a, b) => new Date(b.createdAt || b.created_at).getTime() - new Date(a.createdAt || a.created_at).getTime());
         if (sorted[0]) {
           sorted[0].balance = bal;
           sorted[0].new_balance = bal;
@@ -265,12 +294,40 @@ export default async function handler(req, res) {
     soTien: bal,
     transactions: list,
     data: list,
+    transactionList: list,
+    transaction_list: list,
+    transactionHistoryList: list,
+    transaction_history_list: list,
+    history: list,
     account_name: name,
     customer_name: name,
     customerName: name,
     fullName: name,
     total: list.length,
     page: 1,
-    limit: 20
+    limit: 20,
+    result: {
+      responseCode: '00',
+      message: 'Success',
+      ok: true,
+      accountNumber: accNum,
+      account_number: accNum,
+      stk: accNum,
+      balance: bal,
+      account_balance: bal,
+      accountBalance: bal,
+      available_balance: bal,
+      availableBalance: bal,
+      current_balance: bal,
+      currentBalance: bal,
+      transactions: list,
+      transactionList: list,
+      transactionHistoryList: list,
+      data: list,
+      total: list.length,
+      customerName: name,
+      accountName: name,
+      fullName: name
+    }
   });
 }

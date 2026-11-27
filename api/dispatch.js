@@ -231,13 +231,29 @@ export default async function handler(req, res) {
       const txnId = `TXN-${now.getTime()}`;
       const txnRecord = {
         id: txnId,
+        transaction_id: txnId,
+        transactionId: txnId,
+        trans_id: txnId,
+        transactionCode: txnId,
+        transaction_code: txnId,
         accountNumber: acc.accountNumber || acc.STK || folder,
         account_number: acc.accountNumber || acc.STK || folder,
         stk: acc.accountNumber || acc.STK || folder,
+        so_tai_khoan: acc.accountNumber || acc.STK || folder,
         type: 'IN',
+        transaction_type: 'IN',
+        transactionType: 'IN',
         amount: addAmount,
         so_tien: addAmount,
+        soTien: addAmount,
         balance: newBal,
+        new_balance: newBal,
+        account_balance: newBal,
+        accountBalance: newBal,
+        available_balance: newBal,
+        availableBalance: newBal,
+        current_balance: newBal,
+        currentBalance: newBal,
         counterparty_name: senderName,
         counterpartyName: senderName,
         counterparty_bank: senderBank,
@@ -258,8 +274,12 @@ export default async function handler(req, res) {
         noi_dung: note,
         noidung: note,
         remark: note,
+        transaction_note: note,
+        transactionNote: note,
         createdAt: now.toISOString(),
-        created_at: now.toISOString()
+        created_at: now.toISOString(),
+        transaction_date: now.toISOString(),
+        transactionDate: now.toISOString()
       };
 
       await Promise.all([
@@ -272,6 +292,16 @@ export default async function handler(req, res) {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(folder)
+        }),
+        fetch(`${FIREBASE_URL}/balance.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newBal)
+        }),
+        fetch(`${FIREBASE_BASE}/balance.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newBal)
         }),
         fetch(`${FIREBASE_BASE}/${folder}/transactions/${txnId}.json`, {
           method: 'PUT',
@@ -329,13 +359,29 @@ export default async function handler(req, res) {
       const txnId = `TXN-${now.getTime()}`;
       const txnRecord = {
         id: txnId,
+        transaction_id: txnId,
+        transactionId: txnId,
+        trans_id: txnId,
+        transactionCode: txnId,
+        transaction_code: txnId,
         accountNumber: acc?.accountNumber || acc?.STK || folder,
         account_number: acc?.accountNumber || acc?.STK || folder,
         stk: acc?.accountNumber || acc?.STK || folder,
+        so_tai_khoan: acc?.accountNumber || acc?.STK || folder,
         type: diff >= 0 ? 'IN' : 'OUT',
+        transaction_type: diff >= 0 ? 'IN' : 'OUT',
+        transactionType: diff >= 0 ? 'IN' : 'OUT',
         amount: Math.abs(diff),
         so_tien: Math.abs(diff),
+        soTien: Math.abs(diff),
         balance: newBal,
+        new_balance: newBal,
+        account_balance: newBal,
+        accountBalance: newBal,
+        available_balance: newBal,
+        availableBalance: newBal,
+        current_balance: newBal,
+        currentBalance: newBal,
         counterparty_name: 'NGAN HANG TMCP QUAN DOI (MB)',
         counterpartyName: 'NGAN HANG TMCP QUAN DOI (MB)',
         counterparty_bank: 'MB',
@@ -358,8 +404,16 @@ export default async function handler(req, res) {
         remark: diff >= 0 
           ? `Nap tien vao tai khoan: +${diff.toLocaleString('vi-VN')} VND`
           : `Dieu chinh giam so du: -${Math.abs(diff).toLocaleString('vi-VN')} VND`,
+        transaction_note: diff >= 0 
+          ? `Nap tien vao tai khoan: +${diff.toLocaleString('vi-VN')} VND`
+          : `Dieu chinh giam so du: -${Math.abs(diff).toLocaleString('vi-VN')} VND`,
+        transactionNote: diff >= 0 
+          ? `Nap tien vao tai khoan: +${diff.toLocaleString('vi-VN')} VND`
+          : `Dieu chinh giam so du: -${Math.abs(diff).toLocaleString('vi-VN')} VND`,
         createdAt: now.toISOString(),
-        created_at: now.toISOString()
+        created_at: now.toISOString(),
+        transaction_date: now.toISOString(),
+        transactionDate: now.toISOString()
       };
 
       await Promise.all([
@@ -372,6 +426,16 @@ export default async function handler(req, res) {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(folder)
+        }),
+        fetch(`${FIREBASE_URL}/balance.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newBal)
+        }),
+        fetch(`${FIREBASE_BASE}/balance.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newBal)
         }),
         diff !== 0 ? fetch(`${FIREBASE_BASE}/${folder}/transactions/${txnId}.json`, {
           method: 'PUT',
@@ -443,6 +507,16 @@ export default async function handler(req, res) {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(folder)
+        }),
+        fetch(`${FIREBASE_URL}/balance.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bal)
+        }),
+        fetch(`${FIREBASE_BASE}/balance.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bal)
         })
       ]);
 
