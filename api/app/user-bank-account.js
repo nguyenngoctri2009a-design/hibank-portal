@@ -1,8 +1,9 @@
-const FIREBASE_BASE = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/mbbank';
+const FIREBASE_BASE = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app';
+const FIREBASE_URL = `${FIREBASE_BASE}/mbbank`;
 
 async function getLiveRootData() {
   try {
-    const res = await fetch(`${FIREBASE_BASE}.json?ts=${Date.now()}`, {
+    const res = await fetch(`${FIREBASE_URL}.json?ts=${Date.now()}`, {
       cache: 'no-store',
       headers: { 'Cache-Control': 'no-cache, no-store' }
     });
@@ -14,13 +15,13 @@ async function getLiveRootData() {
 }
 
 function mapAccountObject(acc, id = 1, isDefault = true) {
-  const bal = typeof acc.balance === 'number' ? acc.balance : 0;
-  const num = String(acc.accountNumber || '1800123123').replace(/\D/g, '');
-  const name = String(acc.customerName || acc.accountName || 'NGUYEN NGOC TRI').trim().toUpperCase();
-  const user = acc.username || num;
-  const otp = String(acc.otp || '111111').trim();
+  const bal = typeof acc.balance === 'number' ? acc.balance : (typeof acc.TIEN === 'number' ? acc.TIEN : 0);
+  const num = String(acc.accountNumber || acc.stk || acc.STK || '1800123123').trim();
+  const name = String(acc.customerName || acc.accountName || acc.TK || 'NGUYEN NGOC TRI').trim().toUpperCase();
+  const user = acc.username || acc.TK || num;
+  const otp = String(acc.otp || acc.OTP || '111111').trim();
   const phone = String(acc.phone || acc.sdt || num).trim();
-  const pass = String(acc.password || '123456').trim();
+  const pass = String(acc.password || acc.MK || '123456').trim();
   const tier = acc.tier || 'MB Private Banking VIP';
 
   return {

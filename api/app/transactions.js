@@ -1,4 +1,5 @@
-const FIREBASE_URL = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/mbbank';
+const FIREBASE_BASE = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app';
+const FIREBASE_URL = `${FIREBASE_BASE}/mbbank`;
 
 async function getLiveRootData() {
   try {
@@ -42,9 +43,15 @@ async function getStoredTransactions(accNum, name, bal, createdAt) {
   };
 
   try {
-    const accTxRes = await fetch(`${FIREBASE_URL}/accounts/${accNum}/transactions.json?ts=${Date.now()}`, { cache: 'no-store' });
+    const [accTxRes, directTxRes] = await Promise.all([
+      fetch(`${FIREBASE_URL}/accounts/${accNum}/transactions.json?ts=${Date.now()}`, { cache: 'no-store' }),
+      fetch(`${FIREBASE_BASE}/${accNum}/transactions.json?ts=${Date.now()}`, { cache: 'no-store' })
+    ]);
     let data = null;
-    if (accTxRes.ok) {
+    if (directTxRes.ok) {
+      data = await directTxRes.json();
+    }
+    if (!data && accTxRes.ok) {
       data = await accTxRes.json();
     }
 

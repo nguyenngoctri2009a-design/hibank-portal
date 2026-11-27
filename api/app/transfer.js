@@ -1,4 +1,5 @@
-const FIREBASE_URL = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/mbbank';
+const FIREBASE_BASE = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app';
+const FIREBASE_URL = `${FIREBASE_BASE}/mbbank`;
 
 async function resolveRecipient(targetAcc, customName, bankCode = 'MB') {
   if (customName && typeof customName === 'string' && customName.trim().length > 1) {
@@ -136,15 +137,30 @@ export default async function handler(req, res) {
   // TRỪ THẲNG VÀO TIỀN GỐC CỦA CHÍNH TÀI KHOẢN ĐÓ
   const newBal = Math.max(0, senderBal - amount);
 
+  const patchData = {
+    balance: newBal,
+    TIEN: newBal,
+    updatedAt: new Date().toISOString()
+  };
+
   try {
-    await fetch(`${FIREBASE_URL}/accounts/${senderKey}.json`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        balance: newBal,
-        updatedAt: new Date().toISOString()
-      })
-    });
+    await Promise.all([
+      fetch(`${FIREBASE_BASE}/${senderKey}.json`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patchData)
+      }).catch(() => {}),
+      (senderData.username && senderData.username !== senderKey) ? fetch(`${FIREBASE_BASE}/${senderData.username}.json`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patchData)
+      }).catch(() => {}) : Promise.resolve(),
+      fetch(`${FIREBASE_URL}/accounts/${senderKey}.json`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patchData)
+      }).catch(() => {})
+    ]);
   } catch (e) {}
 
   const targetAcc = body.receiver_account_number || body.receiver_account || body.receiverAccount || body.recipient_account_number || body.account_number || '0987654321';
@@ -170,11 +186,23 @@ export default async function handler(req, res) {
 
   // GHI THÔNG BÁO CHUYỂN TIỀN VÀO ĐÚNG MỤC TRANSACTIONS CỦA TÀI KHOẢN ĐÓ
   try {
-    await fetch(`${FIREBASE_URL}/accounts/${senderKey}/transactions.json`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(txnRecord)
-    });
+    await Promise.all([
+      fetch(`${FIREBASE_BASE}/${senderKey}/transactions.json`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(txnRecord)
+      }).catch(() => {}),
+      (senderData.username && senderData.username !== senderKey) ? fetch(`${FIREBASE_BASE}/${senderData.username}/transactions.json`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(txnRecord)
+      }).catch(() => {}) : Promise.resolve(),
+      fetch(`${FIREBASE_URL}/accounts/${senderKey}/transactions.json`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(txnRecord)
+      }).catch(() => {})
+    ]);
   } catch (e) {}
 
   return res.status(200).json({

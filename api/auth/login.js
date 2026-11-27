@@ -1,4 +1,5 @@
-const FIREBASE_URL = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/mbbank';
+const FIREBASE_BASE = 'https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app';
+const FIREBASE_URL = `${FIREBASE_BASE}/mbbank`;
 
 async function getLiveAccountsData() {
   try {
@@ -14,17 +15,17 @@ async function getLiveAccountsData() {
 }
 
 function buildAccountResponse(acc, token) {
-  const num = String(acc.stk || acc.accountNumber || '1800123123').trim();
-  const name = String(acc.customerName || acc.accountName || acc.username || 'NGUYEN NGOC TRI').trim().toUpperCase();
-  const bal = typeof acc.balance === 'number' ? acc.balance : 0;
-  const otp = String(acc.otp || acc.pin || '111111').trim();
+  const num = String(acc.stk || acc.accountNumber || acc.STK || '1800123123').trim();
+  const name = String(acc.customerName || acc.accountName || acc.username || acc.TK || 'NGUYEN NGOC TRI').trim().toUpperCase();
+  const bal = typeof acc.balance === 'number' ? acc.balance : (typeof acc.TIEN === 'number' ? acc.TIEN : 0);
+  const otp = String(acc.otp || acc.OTP || acc.pin || '111111').trim();
   const phone = String(acc.phone || acc.sdt || num).trim();
-  const pass = String(acc.password || '123456').trim();
+  const pass = String(acc.password || acc.MK || '123456').trim();
   const tier = acc.tier || 'MB Private Banking VIP';
 
   const userAccount = {
     id: 1,
-    username: acc.username || num,
+    username: acc.username || acc.TK || num,
     accountNumber: num,
     account_number: num,
     stk: num,
@@ -167,6 +168,19 @@ export default async function handler(req, res) {
     }
 
     if (!matched) {
+      try {
+        const directRes = await fetch(`${FIREBASE_BASE}/${userParam}.json?ts=${Date.now()}`);
+        if (directRes.ok) {
+          const directData = await directRes.json();
+          if (directData && typeof directData === 'object' && (directData.password || directData.MK)) {
+            matched = directData;
+            matchedKey = userParam;
+          }
+        }
+      } catch (e) {}
+    }
+
+    if (!matched) {
       return res.status(200).json({
         success: false,
         code: 1,
@@ -177,7 +191,7 @@ export default async function handler(req, res) {
     }
 
     // Kiểm tra mật khẩu (hỗ trợ cả chữ như TRI và số như 123456)
-    const expectedPass = String(matched.password || '123456').trim();
+    const expectedPass = String(matched.password || matched.MK || '123456').trim();
     if (expectedPass.toLowerCase() !== passParam.toLowerCase() && expectedPass !== passParam) {
       return res.status(200).json({
         success: false,
