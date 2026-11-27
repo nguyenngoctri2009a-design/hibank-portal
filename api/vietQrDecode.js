@@ -114,36 +114,49 @@ export default async function handler(req, res) {
       if (addTags['08']) description = addTags['08'];
     }
   } else {
-    bankCode = String(body.bank_code || body.bankCode || 'MB').toUpperCase();
-    accountNumber = String(body.account_number || body.accountNumber || body.stk || qrRaw).replace(/\D/g, '');
-    amount = Number(body.amount || body.so_tien || 0);
-    description = body.description || body.noi_dung || '';
+    const b = (body && typeof body.data === 'object') ? body.data : body;
+    bankCode = String(body.bank_code || body.bankCode || b.bank_code || b.bankCode || req.query?.bank_code || req.query?.bankCode || 'MB').toUpperCase();
+    const accParam = body.recipient_account || body.recipientAccount || body.recipientAcc || body.account_number || body.accountNumber || body.stk || b.recipient_account || b.recipientAccount || b.account_number || b.accountNumber || b.stk || req.query?.account_number || req.query?.accountNumber || req.query?.stk || qrRaw;
+    accountNumber = String(accParam || '').trim();
+    amount = Number(body.amount || body.so_tien || b.amount || b.so_tien || req.query?.amount || 0);
+    description = body.description || body.noi_dung || b.description || b.noi_dung || req.query?.description || '';
   }
 
+  const cleanNum = accountNumber.replace(/\D/g, '');
+
   // Tra cứu tên từ Firebase
-  let customerName = 'NGUOI NHAN';
+  let customerName = null;
   try {
-    const [recRes, rootRes] = await Promise.all([
+    const [recRes, recPlainRes, rootRes] = await Promise.all([
       fetch(`${FIREBASE_URL}/recipients/${bankCode}_${accountNumber}.json?ts=${Date.now()}`),
+      fetch(`${FIREBASE_URL}/recipients/${accountNumber}.json?ts=${Date.now()}`),
       fetch(`${FIREBASE_BASE}/.json?ts=${Date.now()}`)
     ]);
     if (recRes.ok) {
       const d = await recRes.json();
       if (d && (d.customerName || d.accountName)) customerName = (d.customerName || d.accountName).trim().toUpperCase();
     }
-    if (customerName === 'NGUOI NHAN' && rootRes.ok) {
+    if (!customerName && recPlainRes.ok) {
+      const d = await recPlainRes.json();
+      if (d && (d.customerName || d.accountName)) customerName = (d.customerName || d.accountName).trim().toUpperCase();
+    }
+    if (!customerName && rootRes.ok) {
       const rootData = await rootRes.json();
       if (rootData && typeof rootData === 'object') {
         for (const [k, v] of Object.entries(rootData)) {
           if (!v || typeof v !== 'object') continue;
-          const stk = String(v.STK || v.accountNumber || v.stk || '').replace(/\D/g, '');
+          const stk = String(v.STK || v.accountNumber || v.stk || '').trim();
+          const stkNum = stk.replace(/\D/g, '');
           const tk = String(v.TK || v.username || '').toLowerCase();
-          if (stk === accountNumber || k.toLowerCase() === accountNumber.toLowerCase() || tk === accountNumber.toLowerCase()) {
+          const kLower = k.toLowerCase();
+          const accLower = accountNumber.toLowerCase();
+
+          if (kLower === accLower || tk === accLower || (cleanNum && stkNum === cleanNum) || stk === accountNumber) {
             customerName = String(v.customerName || v.accountName || v.TK || k).trim().toUpperCase();
             break;
           }
           if (v.recipients && typeof v.recipients === 'object') {
-            const rec = v.recipients[`${bankCode}_${accountNumber}`] || v.recipients[accountNumber];
+            const rec = v.recipients[`${bankCode}_${accountNumber}`] || v.recipients[accountNumber] || (cleanNum ? (v.recipients[`${bankCode}_${cleanNum}`] || v.recipients[cleanNum]) : null);
             if (rec && (rec.customerName || rec.accountName)) {
               customerName = String(rec.customerName || rec.accountName).trim().toUpperCase();
               break;
@@ -153,6 +166,25 @@ export default async function handler(req, res) {
       }
     }
   } catch(e) {}
+
+  if (!customerName) {
+    return res.status(200).json({
+      success: false,
+      code: 1,
+      status: 'error',
+      message: 'Tài khoản không tồn tại',
+      account_number: accountNumber,
+      accountNumber: accountNumber,
+      stk: accountNumber,
+      customer_name: 'Tài khoản không tồn tại',
+      customerName: 'Tài khoản không tồn tại',
+      account_name: 'Tài khoản không tồn tại',
+      accountName: 'Tài khoản không tồn tại',
+      beneficiary_name: 'Tài khoản không tồn tại',
+      beneficiaryName: 'Tài khoản không tồn tại',
+      data: null
+    });
+  }
 
   const fullBankName = BANK_NAME_MAP[bankCode] || `NGAN HANG ${bankCode}`;
 

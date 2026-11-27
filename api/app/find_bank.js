@@ -10,17 +10,20 @@ const FIREBASE_URL = `${FIREBASE_BASE}/mbbank`;
 const recipientCache = new Map();
 const CACHE_TTL = 3000;
 
-async function lookupFirebaseRecipient(clean, bankCode) {
-  const cacheKey = `${bankCode}_${clean}`;
+async function lookupFirebaseRecipient(query, bankCode) {
+  const cacheKey = `${bankCode}_${query}`;
   const cached = recipientCache.get(cacheKey);
   if (cached && (Date.now() - cached.time < CACHE_TTL)) {
     return cached.name;
   }
 
+  const cleanNum = String(query || '').replace(/\D/g, '');
+  const qLower = String(query || '').toLowerCase();
+
   try {
     const [bankRes, cleanRes, rootRes] = await Promise.all([
-      fetch(`${FIREBASE_URL}/recipients/${bankCode}_${clean}.json?ts=${Date.now()}`, { cache: 'no-store' }),
-      fetch(`${FIREBASE_URL}/recipients/${clean}.json?ts=${Date.now()}`, { cache: 'no-store' }),
+      fetch(`${FIREBASE_URL}/recipients/${bankCode}_${query}.json?ts=${Date.now()}`, { cache: 'no-store' }),
+      fetch(`${FIREBASE_URL}/recipients/${query}.json?ts=${Date.now()}`, { cache: 'no-store' }),
       fetch(`${FIREBASE_BASE}/.json?ts=${Date.now()}`, { cache: 'no-store' })
     ]);
 
@@ -46,10 +49,13 @@ async function lookupFirebaseRecipient(clean, bankCode) {
         for (const [k, v] of Object.entries(rootData)) {
           if (!v || typeof v !== 'object') continue;
 
-          // Kiểm tra nếu k hoặc STK hoặc TK trùng với clean
-          const stk = String(v.STK || v.accountNumber || v.stk || '').replace(/\D/g, '');
+          // Kiểm tra nếu k hoặc STK hoặc TK trùng với query
+          const stk = String(v.STK || v.accountNumber || v.stk || '').trim();
+          const stkNum = stk.replace(/\D/g, '');
           const tk = String(v.TK || v.username || '').toLowerCase();
-          if (stk === clean || k === clean || tk === clean.toLowerCase()) {
+          const kLower = k.toLowerCase();
+
+          if (kLower === qLower || tk === qLower || (cleanNum && stkNum === cleanNum) || stk === query) {
             const name = String(v.customerName || v.accountName || v.TK || k).trim().toUpperCase();
             recipientCache.set(cacheKey, { name, time: Date.now() });
             return name;
@@ -57,7 +63,7 @@ async function lookupFirebaseRecipient(clean, bankCode) {
 
           // Kiểm tra subfolder recipients trong mục tài khoản đó
           if (v.recipients && typeof v.recipients === 'object') {
-            const rec = v.recipients[`${bankCode}_${clean}`] || v.recipients[clean];
+            const rec = v.recipients[`${bankCode}_${query}`] || v.recipients[query] || (cleanNum ? (v.recipients[`${bankCode}_${cleanNum}`] || v.recipients[cleanNum]) : null);
             if (rec && (rec.customerName || rec.accountName)) {
               const name = String(rec.customerName || rec.accountName).trim().toUpperCase();
               recipientCache.set(cacheKey, { name, time: Date.now() });
@@ -75,7 +81,7 @@ async function lookupFirebaseRecipient(clean, bankCode) {
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', '*');
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
 
   if (req.method === 'OPTIONS') {
@@ -87,14 +93,48 @@ export default async function handler(req, res) {
     try { body = JSON.parse(body); } catch(e) { body = {}; }
   }
   body = body || {};
+  const b = (body && typeof body.data === 'object') ? body.data : body;
 
-  const accNum = body.account_number || body.accountNumber || body.stk || body.acc || req.query?.account_number || req.query?.accountNumber || req.query?.stk;
-  const bankCode = (body.bank_code || body.bankCode || req.query?.bank_code || req.query?.bankCode || 'MB').toUpperCase();
-  const customNameParam = body.account_name || body.accountName || body.customerName || req.query?.name;
+  const accNum = String(
+    body.recipient_account ||
+    body.recipientAccount ||
+    body.recipient_account_number ||
+    body.recipientAcc ||
+    body.recipient_acc ||
+    body.receiver_account ||
+    body.receiverAccount ||
+    body.beneficiary_account ||
+    body.beneficiaryAccount ||
+    body.account_number ||
+    body.accountNumber ||
+    body.stk ||
+    body.acc ||
+    b.recipient_account ||
+    b.recipientAccount ||
+    b.recipient_account_number ||
+    b.recipientAcc ||
+    b.recipient_acc ||
+    b.receiver_account ||
+    b.receiverAccount ||
+    b.beneficiary_account ||
+    b.beneficiaryAccount ||
+    b.account_number ||
+    b.accountNumber ||
+    b.stk ||
+    b.acc ||
+    req.query?.recipient_account ||
+    req.query?.recipientAccount ||
+    req.query?.account_number ||
+    req.query?.accountNumber ||
+    req.query?.stk ||
+    req.query?.acc ||
+    ''
+  ).trim();
 
-  const clean = String(accNum || '').replace(/\D/g, '');
+  const bankCode = String(body.bank_code || body.bankCode || b.bank_code || b.bankCode || req.query?.bank_code || req.query?.bankCode || 'MB').toUpperCase();
+  const customNameParam = body.account_name || body.accountName || body.customerName || b.account_name || b.accountName || req.query?.name;
 
-  if (!clean) {
+  if (!accNum) {
     return res.status(200).json({
       success: false,
       code: 1,
@@ -112,7 +152,7 @@ export default async function handler(req, res) {
   if (customNameParam && typeof customNameParam === 'string' && customNameParam.trim().length > 1) {
     resolvedName = customNameParam.trim().toUpperCase();
   } else {
-    resolvedName = await lookupFirebaseRecipient(clean, bankCode);
+    resolvedName = await lookupFirebaseRecipient(accNum, bankCode);
   }
 
   if (!resolvedName) {
@@ -121,9 +161,9 @@ export default async function handler(req, res) {
       code: 1,
       status: 'error',
       message: 'Tài khoản không tồn tại',
-      account_number: clean,
-      accountNumber: clean,
-      stk: clean,
+      account_number: accNum,
+      accountNumber: accNum,
+      stk: accNum,
       account_name: 'Tài khoản không tồn tại',
       accountName: 'Tài khoản không tồn tại',
       customerName: 'Tài khoản không tồn tại',

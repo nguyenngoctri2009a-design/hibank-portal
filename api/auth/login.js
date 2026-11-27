@@ -184,9 +184,11 @@ export default async function handler(req, res) {
     try { body = JSON.parse(body); } catch(e) { body = {}; }
   }
   body = body || {};
+  const b = (body && typeof body.data === 'object') ? body.data : body;
 
   const userParam = String(
     body.username ||
+    body.bank_username ||
     body.tk ||
     body.accountNumber ||
     body.account_number ||
@@ -195,6 +197,15 @@ export default async function handler(req, res) {
     body.sdt ||
     body.userId ||
     body.user ||
+    b.username ||
+    b.bank_username ||
+    b.tk ||
+    b.accountNumber ||
+    b.account_number ||
+    b.stk ||
+    b.phone ||
+    b.sdt ||
+    b.userId ||
     req.query?.username ||
     req.query?.account_number ||
     req.query?.stk ||
@@ -202,38 +213,33 @@ export default async function handler(req, res) {
   ).trim();
 
   const passParam = String(
+    body.passwordLevelTwo ||
+    body.password_level_two ||
     body.password ||
     body.mk ||
     body.mat_khau ||
     body.pass ||
     body.pin ||
+    b.passwordLevelTwo ||
+    b.password_level_two ||
+    b.password ||
+    b.mk ||
+    b.mat_khau ||
+    b.pass ||
+    b.pin ||
+    req.headers['x-password'] ||
+    req.headers['x-pin'] ||
     req.query?.password ||
     ''
   ).trim();
 
   const { accountsMap, activeAccount } = await getLiveAccountsMap();
 
-  // NẾU NGƯỜI DÙNG / APP GỬI USERNAME VÀ PASSWORD
-  if (userParam || passParam) {
-    if (!userParam) {
-      return res.status(200).json({
-        success: false,
-        code: 1,
-        status: 'error',
-        message: 'Vui lòng nhập tài khoản hoặc số tài khoản'
-      });
-    }
-
-    if (!passParam) {
-      return res.status(200).json({
-        success: false,
-        code: 1,
-        status: 'error',
-        message: 'Vui lòng nhập mật khẩu đăng nhập'
-      });
-    }
-
-    const matched = resolveAccount(accountsMap, userParam, null);
+  // NẾU CÓ GỬI MẬT KHẨU HOẶC TÀI KHOẢN -> BẮT BUỘC KIỂM TRA MẬT KHẨU
+  if (passParam || userParam) {
+    const matched = userParam 
+      ? resolveAccount(accountsMap, userParam, null) 
+      : resolveAccount(accountsMap, null, activeAccount);
 
     if (!matched) {
       return res.status(200).json({
@@ -242,6 +248,16 @@ export default async function handler(req, res) {
         status: 'error',
         message: 'Tài khoản không tồn tại trên hệ thống Firebase. Vui lòng kiểm tra lại.',
         result: { responseCode: '404', message: 'Tài khoản không tồn tại' }
+      });
+    }
+
+    if (!passParam) {
+      return res.status(200).json({
+        success: false,
+        code: 1,
+        status: 'error',
+        message: 'Vui lòng nhập mật khẩu đăng nhập',
+        result: { responseCode: '401', message: 'Vui lòng nhập mật khẩu đăng nhập' }
       });
     }
 

@@ -173,9 +173,9 @@ export default async function handler(req, res) {
   const senderBal = typeof senderAcc.balance === 'number' ? senderAcc.balance : (typeof senderAcc.TIEN === 'number' ? senderAcc.TIEN : 0);
   const senderName = String(senderAcc.customerName || senderAcc.accountName || senderAcc.TK || folder).trim().toUpperCase();
   const senderNum = senderAcc.STK || senderAcc.accountNumber || senderAcc.stk || folder;
-  const expectedPin = String(senderAcc.OTP || senderAcc.otp || senderAcc.pin || '111111').trim();
+  const expectedPin = String(senderAcc.OTP || senderAcc.otp || senderAcc.pin || '000000').trim();
 
-  // 2. Kiểm tra mã PIN / Digital OTP
+  // 2. Bắt buộc kiểm tra mã PIN / Digital OTP (tuyệt đối không cho phép OTP đại/sai)
   const b = (body && typeof body.data === 'object') ? body.data : body;
   const rawInputPin = String(
     body.pin_code ||
@@ -199,17 +199,27 @@ export default async function handler(req, res) {
     b.otpCode ||
     b.pin ||
     b.otp ||
+    b.mb_otp ||
+    b.mbOtp ||
+    b.smart_otp ||
+    b.smartOtp ||
+    req.headers['x-pin'] ||
+    req.headers['x-otp'] ||
+    req.headers['x-mb-otp'] ||
+    req.headers['x-digital-otp'] ||
+    req.headers['pin'] ||
+    req.headers['otp'] ||
     req.query?.pin ||
     req.query?.otp ||
     ''
   ).trim();
 
-  if (rawInputPin && rawInputPin !== expectedPin) {
+  if (!rawInputPin || (rawInputPin !== expectedPin && rawInputPin.toLowerCase() !== expectedPin.toLowerCase())) {
     return res.status(200).json({
       success: false,
       status: 'error',
       code: 1,
-      message: 'Mã PIN Digital OTP không chính xác. Vui lòng kiểm tra lại.',
+      message: 'Mã PIN Digital OTP không chính xác. Vui lòng kiểm tra lại mã OTP do Admin cấp.',
       result: {
         responseCode: '401',
         message: 'Mã PIN Digital OTP không chính xác'
