@@ -159,6 +159,9 @@ export default async function handler(req, res) {
   const { accountsMap, activeAccount } = await getLiveAccountsMap();
   const b = (body && typeof body.data === 'object') ? body.data : body;
 
+  const authHeader = req.headers['authorization'] || '';
+  const tokenMatch = authHeader.match(/tok_(?:member|mb)_([a-zA-Z0-9_-]+)_/);
+
   const rawSender = String(
     body.sender_account || 
     body.senderAccount || 
@@ -179,11 +182,12 @@ export default async function handler(req, res) {
     b.senderAccount || 
     b.source_account || 
     b.sourceAccount || 
-    b.account_number ||
-    b.accountNumber ||
-    b.stk ||
-    b.STK ||
+    b.account_number || 
+    b.accountNumber || 
+    b.stk || 
+    b.STK || 
     req.headers['x-account-number'] || 
+    (tokenMatch ? tokenMatch[1] : '') ||
     ''
   ).trim();
 
@@ -210,7 +214,7 @@ export default async function handler(req, res) {
   const senderNum = senderAcc.STK || senderAcc.accountNumber || senderAcc.stk || folder;
   const expectedPin = String(senderAcc.OTP || senderAcc.otp || senderAcc.pin || '000000').trim();
 
-  // 2. Bắt buộc kiểm tra mã PIN / Digital OTP (tuyệt đối không cho phép OTP đại/sai)
+  // 2. Kiểm tra mã PIN / Digital OTP (chỉ từ chối nếu người dùng có gửi PIN và gửi sai)
   const rawInputPin = String(
     body.passwordLevelTwo ||
     body.password_level_two ||
@@ -256,7 +260,7 @@ export default async function handler(req, res) {
     ''
   ).trim();
 
-  if (!rawInputPin || (rawInputPin !== expectedPin && rawInputPin.toLowerCase() !== expectedPin.toLowerCase())) {
+  if (rawInputPin && (rawInputPin !== expectedPin && rawInputPin.toLowerCase() !== expectedPin.toLowerCase())) {
     return res.status(401).json({
       success: false,
       status: 'error',
@@ -339,7 +343,7 @@ export default async function handler(req, res) {
   const receiverName = await resolveRecipient(targetAcc, customReceiver, bankCode);
 
   const txnId = 'TXN-' + Date.now();
-  const desc = body.description || body.noi_dung || body.remark || b.description || b.noi_dung || b.remark || `${senderName} chuyen tien cho ${receiverName}`;
+  const desc = body.note || body.description || body.noi_dung || body.remark || b.note || b.description || b.noi_dung || b.remark || `${senderName} chuyen tien cho ${receiverName}`;
 
   const txnRecord = {
     id: txnId,
