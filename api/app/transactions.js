@@ -106,17 +106,17 @@ export default async function handler(req, res) {
   const root = await getLiveRootData();
   const allAccounts = root.accounts || {};
 
-  // NGUỒN CHUẨN TỪ WEB
+  // NGUỒN CHUẨN TỪ WEB (Hỗ trợ cả chuỗi ký tự và số)
   const masterKey = root.active_account 
-    ? String(root.active_account).replace(/\D/g, '') 
-    : (root.accountNumber ? String(root.accountNumber).replace(/\D/g, '') : '1800123123');
+    ? String(root.active_account).trim() 
+    : (Object.keys(allAccounts).length > 0 ? Object.keys(allAccounts)[0] : '1800123123');
 
   const requestedRaw = req.query?.account_number || req.query?.accountNumber || req.query?.stk || req.headers['x-account-number'];
-  const requested = requestedRaw ? String(requestedRaw).replace(/\D/g, '') : null;
+  const requested = requestedRaw ? String(requestedRaw).trim() : null;
 
   // NẾU TÀI KHOẢN YÊU CẦU KHÔNG CÓ TRÊN HỆ THỐNG, LUÔN DÙNG MASTER TÀI KHOẢN WEB!
   const accNum = (requested && allAccounts[requested]) ? requested : masterKey;
-  const accData = allAccounts[accNum] || {};
+  const accData = allAccounts[accNum] || allAccounts[masterKey] || {};
 
   const name = String(accData.customerName || accData.accountName || root.customerName || root.accountName || 'NGUYEN NGOC TRI').trim().toUpperCase();
   const bal = typeof accData.balance === 'number' 

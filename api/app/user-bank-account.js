@@ -112,15 +112,15 @@ export default async function handler(req, res) {
                        req.headers['x-account-number'] ||
                        (tokenMatch ? tokenMatch[1] : null);
 
-  const requested = requestedRaw ? String(requestedRaw).replace(/\D/g, '') : null;
+  const requested = requestedRaw ? String(requestedRaw).trim() : null;
 
   const root = await getLiveRootData();
   const allAccounts = root.accounts || {};
 
-  // NGUỒN CHUẨN MASTER TỪ WEB / ADMIN
+  // NGUỒN CHUẨN MASTER TỪ WEB / ADMIN (Hỗ trợ cả chuỗi ký tự và số)
   const masterKey = root.active_account 
-    ? String(root.active_account).replace(/\D/g, '') 
-    : (root.accountNumber ? String(root.accountNumber).replace(/\D/g, '') : '1800123123');
+    ? String(root.active_account).trim() 
+    : (Object.keys(allAccounts).length > 0 ? Object.keys(allAccounts)[0] : '1800123123');
 
   // NẾU REQUESTED KHÔNG TỒN TẠI TRONG ACCOUNTS, BẮT BUỘC KHÓA CHẶT VÀO MASTER KEY CỦA WEB!
   let currentKey = (requested && allAccounts[requested]) ? requested : masterKey;

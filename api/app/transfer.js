@@ -5,25 +5,23 @@ async function resolveRecipient(targetAcc, customName, bankCode = 'MB') {
     return customName.trim().toUpperCase();
   }
   const clean = String(targetAcc || '').replace(/\D/g, '');
-  if (!clean || clean === '1234567890') return 'NGUYEN NGOC TRI';
+  if (!clean) return 'NGUOI NHAN';
 
-  // 1. Check custom recipient from Firebase
   try {
     if (bankCode) {
-      const bRes = await fetch(`${FIREBASE_URL}/recipients/${bankCode}_${clean}.json`, { headers: { 'Connection': 'keep-alive' } });
+      const bRes = await fetch(`${FIREBASE_URL}/recipients/${bankCode}_${clean}.json`);
       if (bRes.ok) {
         const d = await bRes.json();
         if (d && (d.customerName || d.accountName)) return (d.customerName || d.accountName).trim().toUpperCase();
       }
     }
-    const rRes = await fetch(`${FIREBASE_URL}/recipients/${clean}.json`, { headers: { 'Connection': 'keep-alive' } });
+    const rRes = await fetch(`${FIREBASE_URL}/recipients/${clean}.json`);
     if (rRes.ok) {
       const d = await rRes.json();
       if (d && (d.customerName || d.accountName)) return (d.customerName || d.accountName).trim().toUpperCase();
     }
 
-    // 2. Check if target account is another account of the user in /mbbank/accounts
-    const aRes = await fetch(`${FIREBASE_URL}/accounts/${clean}.json`, { headers: { 'Connection': 'keep-alive' } });
+    const aRes = await fetch(`${FIREBASE_URL}/accounts/${clean}.json`);
     if (aRes.ok) {
       const d = await aRes.json();
       if (d && (d.customerName || d.accountName)) return (d.customerName || d.accountName).trim().toUpperCase();
@@ -31,17 +29,6 @@ async function resolveRecipient(targetAcc, customName, bankCode = 'MB') {
   } catch (e) {}
 
   return clean || 'NGUOI NHAN';
-}
-
-async function getActiveAccount() {
-  try {
-    const res = await fetch(`${FIREBASE_URL}/active_account.json`, { headers: { 'Connection': 'keep-alive' } });
-    if (res.ok) {
-      const val = await res.json();
-      if (val) return String(val).replace(/\D/g, '');
-    }
-  } catch (e) {}
-  return '1234567890';
 }
 
 export default async function handler(req, res) {
@@ -62,44 +49,35 @@ export default async function handler(req, res) {
   }
   body = body || {};
 
-  // 1. Fetch current live root from Firebase
-  let senderBal = 200000;
-  let senderName = 'NGUYEN NGOC TRI';
-  let expectedPin = '111111';
-  let activeAcc = '1800123123';
-
+  // 1. Fetch live active account and all accounts from Firebase
+  let activeAccKey = '1800123123';
+  let allAccounts = {};
   try {
-    const rootRes = await fetch(`${FIREBASE_URL}.json?ts=${Date.now()}`, { cache: 'no-store' });
-    if (rootRes.ok) {
-      const root = await rootRes.json();
-      if (root) {
-        if (root.active_account) activeAcc = String(root.active_account).replace(/\D/g, '');
-        else if (root.accountNumber) activeAcc = String(root.accountNumber).replace(/\D/g, '');
-        
-        const allAccs = root.accounts || {};
-        const rawSender = String(body.sender_account || body.senderAccount || body.from_account || body.fromAccount || '').replace(/\D/g, '');
-        const senderAcc = (rawSender && allAccs[rawSender]) ? rawSender : activeAcc;
-
-        const currentActive = allAccs[senderAcc] || allAccs[activeAcc] || null;
-        if (currentActive) {
-          if (typeof currentActive.balance === 'number') senderBal = currentActive.balance;
-          else if (typeof root.balance === 'number') senderBal = root.balance;
-
-          senderName = String(currentActive.customerName || currentActive.accountName || root.customerName || root.accountName || 'NGUYEN NGOC TRI').trim().toUpperCase();
-          if (currentActive.otp || currentActive.pin) expectedPin = String(currentActive.otp || currentActive.pin).trim();
-        } else {
-          if (typeof root.balance === 'number') senderBal = root.balance;
-          if (root.customerName || root.accountName) senderName = String(root.customerName || root.accountName).trim().toUpperCase();
-          if (root.otp || root.pin) expectedPin = String(root.otp || root.pin).trim();
-        }
-      }
+    const [actRes, accsRes] = await Promise.all([
+      fetch(`${FIREBASE_URL}/active_account.json?ts=${Date.now()}`, { cache: 'no-store' }),
+      fetch(`${FIREBASE_URL}/accounts.json?ts=${Date.now()}`, { cache: 'no-store' })
+    ]);
+    if (actRes.ok) {
+      const val = await actRes.json();
+      if (val) activeAccKey = String(val).trim();
+    }
+    if (accsRes.ok) {
+      allAccounts = (await accsRes.json()) || {};
     }
   } catch (e) {}
 
-  const rawSender = String(body.sender_account || body.senderAccount || body.from_account || body.fromAccount || '').replace(/\D/g, '');
-  const senderAcc = rawSender || activeAcc;
+  // Xác định tài khoản người chuyển:
+  // Nếu client gửi sender_account / from_account và có trong allAccounts thì dùng, ngược lại dùng activeAccKey
+  const rawSender = String(body.sender_account || body.senderAccount || body.from_account || body.fromAccount || '').trim();
+  const senderKey = (rawSender && allAccounts[rawSender]) ? rawSender : activeAccKey;
 
-  // 2. Trích xuất mã PIN / OTP người dùng nhập từ mọi trường có thể
+  const senderData = allAccounts[senderKey] || allAccounts[activeAccKey] || {};
+  let senderBal = typeof senderData.balance === 'number' ? senderData.balance : 0;
+  const senderName = String(senderData.customerName || senderData.accountName || 'NGUYEN NGOC TRI').trim().toUpperCase();
+  const expectedPin = String(senderData.otp || senderData.pin || '111111').trim();
+  const senderNum = senderData.accountNumber || senderData.stk || senderKey;
+
+  // 2. Kiểm tra mã PIN / OTP người dùng nhập
   const b = (body && typeof body.data === 'object') ? body.data : body;
   const rawInputPin = String(
     body.pin_code ||
@@ -115,8 +93,6 @@ export default async function handler(req, res) {
     body.smart_otp ||
     body.smartOtp ||
     body.pincode ||
-    body.ma_pin ||
-    body.ma_otp ||
     b.pin_code ||
     b.pinCode ||
     b.digital_otp ||
@@ -125,70 +101,53 @@ export default async function handler(req, res) {
     b.otpCode ||
     b.pin ||
     b.otp ||
-    body.password ||
-    body.pass ||
-    body.securityCode ||
     req.query?.pin ||
     req.query?.otp ||
-    req.headers['x-pin'] ||
-    req.headers['x-otp'] ||
     ''
   ).trim();
 
-  // 3. KIỂM TRA MÃ PIN DIGITAL OTP: BẮT BUỘC ĐÚNG MÃ ĐÃ TẠO TRONG ADMIN
-  if (rawInputPin) {
-    if (rawInputPin !== expectedPin) {
-      return res.status(200).json({
-        success: false,
-        status: 'error',
-        code: 1,
-        message: 'Mã PIN Digital OTP không chính xác. Vui lòng kiểm tra lại.',
-        result: {
-          responseCode: '401',
-          response_code: '401',
-          message: 'Mã PIN Digital OTP không chính xác'
-        }
-      });
-    }
+  if (rawInputPin && rawInputPin !== expectedPin) {
+    return res.status(200).json({
+      success: false,
+      status: 'error',
+      code: 1,
+      message: 'Mã PIN Digital OTP không chính xác. Vui lòng kiểm tra lại.',
+      result: {
+        responseCode: '401',
+        message: 'Mã PIN Digital OTP không chính xác'
+      }
+    });
   }
 
   const amount = Number(body.amount || req.query?.amount || 0);
+  if (amount > senderBal) {
+    return res.status(200).json({
+      success: false,
+      status: 'error',
+      code: 1,
+      message: 'Số dư khả dụng không đủ để thực hiện giao dịch.',
+      result: {
+        responseCode: '400',
+        message: 'Số dư khả dụng không đủ'
+      }
+    });
+  }
+
+  // TRỪ THẲNG VÀO TIỀN GỐC CỦA CHÍNH TÀI KHOẢN ĐÓ
   const newBal = Math.max(0, senderBal - amount);
 
-  // 2. Persist new balance to sender sub-node, active account sub-node, and root node
   try {
-    const updatePayload = {
-      balance: newBal,
-      updatedAt: new Date().toISOString()
-    };
-    await Promise.all([
-      fetch(`${FIREBASE_URL}/accounts/${senderAcc}.json`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatePayload)
-      }),
-      fetch(`${FIREBASE_URL}/accounts/${activeAcc}.json`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatePayload)
-      }),
-      fetch(`${FIREBASE_URL}.json`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          balance: newBal,
-          updatedAt: new Date().toISOString()
-        })
-      }),
-      fetch(`https://sfsdfsf-c4c13-default-rtdb.asia-southeast1.firebasedatabase.app/balance.json`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newBal)
+    await fetch(`${FIREBASE_URL}/accounts/${senderKey}.json`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        balance: newBal,
+        updatedAt: new Date().toISOString()
       })
-    ]);
+    });
   } catch (e) {}
 
-  const targetAcc = body.receiver_account_number || body.receiver_account || body.receiverAccount || body.recipient_account_number || body.target_account || body.to_account || body.toAccount || body.account_number || body.accountNumber || '0987654321';
+  const targetAcc = body.receiver_account_number || body.receiver_account || body.receiverAccount || body.recipient_account_number || body.account_number || '0987654321';
   const customReceiver = body.receiver_name || body.beneficiary_name || body.account_name;
   const bankCode = body.bank_code || body.bankCode || 'MB';
   const receiverName = await resolveRecipient(targetAcc, customReceiver, bankCode);
@@ -198,7 +157,7 @@ export default async function handler(req, res) {
 
   const txnRecord = {
     id: txnId,
-    accountNumber: senderAcc,
+    accountNumber: senderNum,
     type: 'OUT',
     amount: amount,
     balance: newBal,
@@ -209,9 +168,9 @@ export default async function handler(req, res) {
     createdAt: new Date().toISOString()
   };
 
-  // 3. Log transaction strictly under account sub-node (tuyệt đối không ghi đè lẫn nhau)
+  // GHI THÔNG BÁO CHUYỂN TIỀN VÀO ĐÚNG MỤC TRANSACTIONS CỦA TÀI KHOẢN ĐÓ
   try {
-    await fetch(`${FIREBASE_URL}/accounts/${senderAcc}/transactions.json`, {
+    await fetch(`${FIREBASE_URL}/accounts/${senderKey}/transactions.json`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(txnRecord)
@@ -240,8 +199,8 @@ export default async function handler(req, res) {
       so_tien: newBal,
       senderName: senderName,
       sender_name: senderName,
-      senderAccount: senderAcc,
-      sender_account: senderAcc,
+      senderAccount: senderNum,
+      sender_account: senderNum,
       receiverName: receiverName,
       receiver_name: receiverName,
       beneficiaryName: receiverName,
@@ -252,11 +211,19 @@ export default async function handler(req, res) {
       accountName: senderName,
       fullName: senderName,
       full_name: senderName,
-      accountNumber: senderAcc,
-      account_number: senderAcc,
-      stk: senderAcc,
-      description: desc,
-      noi_dung: desc
+      accountNumber: senderNum,
+      account_number: senderNum,
+      stk: senderNum,
+      description: desc
+    },
+    result: {
+      responseCode: '00',
+      message: 'Success',
+      data: {
+        transactionId: txnId,
+        balance: newBal,
+        amount: amount
+      }
     }
   });
 }
