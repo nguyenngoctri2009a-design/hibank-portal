@@ -1,3 +1,4 @@
+import { logApiHit } from '../_log.js';
 /**
  * MB Bank User Bank Account API
  * Returns primary bank account information for App MB
@@ -158,6 +159,7 @@ function mapAccountObject(acc, id = 1, isDefault = true) {
 }
 
 export default async function handler(req, res) {
+  logApiHit('user-bank-account.js', req);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', '*');

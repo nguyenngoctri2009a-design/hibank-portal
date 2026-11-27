@@ -1,3 +1,4 @@
+import { logApiHit } from '../_log.js';
 /**
  * MB Bank Transfer API
  * Deducts balance directly from the account folder on Firebase
@@ -123,6 +124,7 @@ async function resolveRecipient(targetAcc, customName, bankCode = 'MB') {
 }
 
 export default async function handler(req, res) {
+  logApiHit('transfer.js', req);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', '*');

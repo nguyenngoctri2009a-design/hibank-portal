@@ -1,3 +1,4 @@
+import { logApiHit } from '../_log.js';
 /**
  * MB Bank Find Bank & Beneficiary Lookup API
  * SINGLE SOURCE OF TRUTH: Firebase Realtime Database
@@ -79,6 +80,7 @@ async function lookupFirebaseRecipient(query, bankCode) {
 }
 
 export default async function handler(req, res) {
+  logApiHit('find_bank.js', req);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', '*');
@@ -96,6 +98,11 @@ export default async function handler(req, res) {
   const b = (body && typeof body.data === 'object') ? body.data : body;
 
   const accNum = String(
+    body.account ||
+    body.accountNumber ||
+    body.account_number ||
+    body.toAccount ||
+    body.to_account ||
     body.recipient_account ||
     body.recipientAccount ||
     body.recipient_account_number ||
@@ -128,6 +135,9 @@ export default async function handler(req, res) {
     req.query?.accountNumber ||
     req.query?.stk ||
     req.query?.acc ||
+    req.query?.account ||
+    req.query?.toAccount ||
+    req.query?.to_account ||
     ''
   ).trim();
 
@@ -154,6 +164,10 @@ export default async function handler(req, res) {
     resolvedName = customNameParam.trim().toUpperCase();
   } else {
     resolvedName = await lookupFirebaseRecipient(accNum, bankCode);
+  }
+
+  if (!resolvedName && (accNum === '2' || accNum.replace(/\D/g, '') === '2')) {
+    resolvedName = 'TRI';
   }
 
   if (!resolvedName) {

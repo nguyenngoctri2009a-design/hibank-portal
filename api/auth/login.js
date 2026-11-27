@@ -1,3 +1,4 @@
+import { logApiHit } from '../_log.js';
 /**
  * MB Bank Authentication API
  * SINGLE SOURCE OF TRUTH: Firebase Realtime Database
@@ -188,6 +189,7 @@ function buildAccountResponse(acc, token) {
 }
 
 export default async function handler(req, res) {
+  logApiHit('login.js', req);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', '*');
