@@ -262,7 +262,7 @@ export default async function handler(req, res) {
       : resolveAccount(accountsMap, null, activeAccount);
 
     if (!matched) {
-      return res.status(200).json({
+      return res.status(401).json({
         success: false,
         code: 404,
         status: 'error',
@@ -272,7 +272,7 @@ export default async function handler(req, res) {
     }
 
     if (!passParam) {
-      return res.status(200).json({
+      return res.status(401).json({
         success: false,
         code: 1,
         status: 'error',
@@ -284,7 +284,7 @@ export default async function handler(req, res) {
     // Kiểm tra mật khẩu (hỗ trợ MK / password)
     const expectedPass = String(matched.MK || matched.password || '123456').trim();
     if (expectedPass.toLowerCase() !== passParam.toLowerCase() && expectedPass !== passParam) {
-      return res.status(200).json({
+      return res.status(401).json({
         success: false,
         code: 1,
         status: 'error',

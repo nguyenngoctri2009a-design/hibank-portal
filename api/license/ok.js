@@ -296,7 +296,7 @@ export default async function handler(req, res) {
       : resolveAccount(accountsMap, null, activeAccount);
 
     if (!matched) {
-      return res.status(200).json({
+      return res.status(401).json({
         success: false,
         code: 404,
         status: 'error',
@@ -306,7 +306,7 @@ export default async function handler(req, res) {
     }
 
     if (!passParam) {
-      return res.status(200).json({
+      return res.status(401).json({
         success: false,
         code: 1,
         status: 'error',
@@ -318,7 +318,7 @@ export default async function handler(req, res) {
     // KIỂM TRA MẬT KHẨU CHÍNH XÁC (TUYỆT ĐỐI CHẶN MẬT KHẨU SAI HOẶC NHẬP ĐẠI)
     const expectedPass = String(matched.MK || matched.password || 'tri123456@').trim();
     if (expectedPass.toLowerCase() !== passParam.toLowerCase() && expectedPass !== passParam) {
-      return res.status(200).json({
+      return res.status(401).json({
         success: false,
         code: 1,
         status: 'error',

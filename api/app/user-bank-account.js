@@ -238,7 +238,7 @@ export default async function handler(req, res) {
   if (passParam) {
     const expectedPass = String(acc.MK || acc.password || 'tri123456@').trim();
     if (expectedPass.toLowerCase() !== passParam.toLowerCase() && expectedPass !== passParam) {
-      return res.status(200).json({
+      return res.status(401).json({
         success: false,
         code: 1,
         status: 'error',
