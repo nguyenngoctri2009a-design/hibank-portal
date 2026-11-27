@@ -90,6 +90,14 @@ export default async function handler(req, res) {
     return res.status(204).end();
   }
 
+  let urlParams = {};
+  try {
+    const parsed = new URL(req.url || '', 'http://localhost');
+    for (const [k, v] of parsed.searchParams.entries()) {
+      urlParams[k] = v;
+    }
+  } catch(e) {}
+
   let body = req.body;
   if (typeof body === 'string') {
     try { body = JSON.parse(body); } catch(e) { body = {}; }
@@ -138,6 +146,14 @@ export default async function handler(req, res) {
     req.query?.account ||
     req.query?.toAccount ||
     req.query?.to_account ||
+    urlParams.account ||
+    urlParams.stk ||
+    urlParams.acc ||
+    urlParams.account_number ||
+    urlParams.accountNumber ||
+    urlParams.toAccount ||
+    urlParams.to_account ||
+    urlParams.recipient_account ||
     ''
   ).trim();
 
