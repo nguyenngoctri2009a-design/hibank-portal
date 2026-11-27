@@ -83,6 +83,7 @@ async function getStoredTransactions(accNum, accData) {
     if (data && typeof data === 'object') {
       const customList = Object.values(data)
         .filter(t => t && String(t.accountNumber || '').replace(/\D/g, '') === String(accNum).replace(/\D/g, ''))
+        .filter(t => t.type === 'IN') // Chỉ trả về giao dịch nhận/nạp tiền (IN). Giao dịch chuyển tiền (OUT) App MB đã tự lưu và hiển thị cục bộ qua .mb_tx_history_vault.json, tránh bị nhân đôi!
         .map(t => ({
           id: t.id,
           accountNumber: accNum,
