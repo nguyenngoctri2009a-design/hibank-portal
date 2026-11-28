@@ -311,15 +311,37 @@ export default async function handler(req, res) {
   const patchData = {
     balance: newBal,
     TIEN: newBal,
+    accountBalance: newBal,
+    account_balance: newBal,
+    availableBalance: newBal,
+    available_balance: newBal,
+    currentBalance: newBal,
+    current_balance: newBal,
+    new_balance: newBal,
+    so_tien: newBal,
+    soTien: newBal,
+    sotien: newBal,
     updatedAt: new Date().toISOString()
   };
 
   try {
-    await fetch(`${FIREBASE_BASE}/${folder}.json`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(patchData)
-    });
+    await Promise.all([
+      fetch(`${FIREBASE_BASE}/${folder}.json`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patchData)
+      }),
+      fetch(`${FIREBASE_URL}/balance.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newBal)
+      }),
+      fetch(`${FIREBASE_BASE}/balance.json`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newBal)
+      })
+    ]);
   } catch (e) {}
 
   const targetAcc = String(
@@ -347,15 +369,54 @@ export default async function handler(req, res) {
 
   const txnRecord = {
     id: txnId,
+    transaction_id: txnId,
+    transactionId: txnId,
+    trans_id: txnId,
+    transactionCode: txnId,
+    transaction_code: txnId,
     accountNumber: senderNum,
+    account_number: senderNum,
+    stk: senderNum,
+    so_tai_khoan: senderNum,
     type: 'OUT',
+    transaction_type: 'OUT',
+    transactionType: 'OUT',
     amount: amount,
+    so_tien: amount,
+    soTien: amount,
+    sotien: amount,
     balance: newBal,
+    new_balance: newBal,
+    account_balance: newBal,
+    accountBalance: newBal,
+    available_balance: newBal,
+    availableBalance: newBal,
+    current_balance: newBal,
+    currentBalance: newBal,
     receiverName: receiverName,
+    receiver_name: receiverName,
+    beneficiaryName: receiverName,
+    beneficiary_name: receiverName,
+    counterpartyName: receiverName,
+    counterparty_name: receiverName,
     receiverAccount: targetAcc,
+    receiver_account: targetAcc,
+    counterpartyAccount: targetAcc,
+    counterparty_account: targetAcc,
+    counterpartyBank: bankCode,
+    counterparty_bank: bankCode,
     bankCode: bankCode,
+    bank_code: bankCode,
     description: desc,
-    createdAt: new Date().toISOString()
+    noi_dung: desc,
+    noidung: desc,
+    remark: desc,
+    transaction_note: desc,
+    transactionNote: desc,
+    createdAt: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+    transaction_date: new Date().toISOString(),
+    transactionDate: new Date().toISOString()
   };
 
   // 4. LƯU BÁO CÁO GIAO DỊCH DUY NHẤT VÀO /<TK>/transactions TRÊN FIREBASE
